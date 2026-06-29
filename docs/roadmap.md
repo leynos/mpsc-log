@@ -315,14 +315,22 @@ the data-loss window the design rejects. It informs scheduled-mode retention
 because both modes rely on atomic gzip output and deletion ordering. See
 mpsc-log-design.md §§2, 8, 11 and terms-of-reference.md §§6-7.
 
-- [ ] 4.2.1. Implement atomic gzip output for rotated generations.
+- [ ] 4.2.1. Benchmark and select the gzip compression backend.
   - Requires 4.1.2.
+  - See mpsc-log-design.md §§2, 8.
+  - [ ] Benchmark `flate2`, `gzp`, and `gzippy` on representative rotated
+    journal files before selecting the compression backend.
+  - Success: the chosen backend has measured throughput, atomic-output
+    integration, dependency, and portability rationale documented in the design
+    or rotation ADR.
+- [ ] 4.2.2. Implement atomic gzip output for rotated generations.
+  - Requires 4.2.1.
   - See mpsc-log-design.md §§2, 8.
   - Success: failed compression leaves the source generation in place and
     aborts before appending the pending record.
-- [ ] 4.2.2. Implement retention deletion for plain and compressed
+- [ ] 4.2.3. Implement retention deletion for plain and compressed
   generations.
-  - Requires 4.2.1.
+  - Requires 4.2.2.
   - See mpsc-log-design.md §§6, 8.
   - Success: files beyond `plain_generations + compressed_generations` are
     deleted only after newer retained files are safely in place.
@@ -353,7 +361,7 @@ and context.md.
   - Success: busy periods produce ordered `.n` suffixes, and final scheduled
     archives use the next suffix when a period already has size splits.
 - [ ] 4.3.4. Implement scheduled-mode period retention and compression.
-  - Requires 4.2.2 and 4.3.3.
+  - Requires 4.2.3 and 4.3.3.
   - See mpsc-log-design.md §8.
   - Success: the newest completed periods remain plain as complete groups,
     older retained periods are gzipped, and expired periods are deleted.
