@@ -10,11 +10,13 @@
 | Agent workflow               | A workflow that launches one or more autonomous agents or helper processes that can invoke command-line tools.                                                       |
 | Audit yield                  | The distribution of audit findings by severity, source, and remediation lane.                                                                                        |
 | CodeRabbit attempt           | One attempt to run CodeRabbit review, including its start time, result, wait time, retry status, and whether the review was deferred.                                |
+| Corrupt final line           | A newline-terminated final JSON Lines record that is not a valid JSON object. The default repair path reports this instead of truncating it.                         |
 | Defect escape                | A defect discovered after merge by later work, dogfooding, Continuous Integration (CI), or users.                                                                    |
 | Journal                      | A shared JSON Lines file used as an append-only record of workflow events.                                                                                           |
 | Lock timeout                 | The maximum time an invocation waits for the journal lock before failing with a timeout diagnostic.                                                                  |
 | Object path                  | A `jo`-inspired field path that writes a value into a nested JSON object rather than into a literal top-level key.                                                   |
 | Open Dynamic Workflows (ODW) | The workflow runtime used by `df12-build` to coordinate multi-agent roadmap execution.                                                                               |
+| Partial tail                 | Unterminated bytes after the final newline in the active log. Repair may truncate these bytes before appending the next record.                                      |
 | Record                       | One JSON object serialized as one JSON Lines value and terminated with `\n`.                                                                                         |
 | Remediation lane             | The route assigned to a review or audit follow-up, such as addendum, step task, later roadmap step, or dropped.                                                      |
 | Review round                 | One pass through a review loop, including any blocking findings and subsequent fix attempt.                                                                          |

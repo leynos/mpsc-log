@@ -222,7 +222,7 @@ sequenceDiagram
     M->>M: create parent directories
     M->>L: open or create lock file
     M->>L: acquire exclusive lock with timeout
-    M->>J: repair trailing partial record
+    M->>J: validate final record and repair partial tail
     M->>R: rotate and compress if threshold or schedule requires it
     M->>J: append record plus newline
     M->>L: release lock
@@ -233,9 +233,25 @@ Figure 2: Critical-section protocol.
 
 The writer records the active file length before appending. If `write_all`
 returns an error, the writer truncates the active file back to that length
-before returning. If the process dies during a write, the next invocation's
-tail repair scans backward to the final `\n`, validates the remaining final
-line if present, and truncates any partial tail before appending.
+before returning. If the process dies during a write, the next invocation first
+classifies the active file tail while holding the journal lock:
+
+- Empty files need no repair.
+- Files ending without `\n` have an unterminated final line. When
+  `repair_partial_tail = true`, the writer scans backward to the previous `\n`,
+  truncates the unterminated bytes, and appends the new record. When
+  `repair_partial_tail = false`, the invocation fails with `EX_DATAERR` and
+  leaves the file unchanged.
+- Files ending with `\n` have no partial tail. The complete final line is the
+  bytes between the previous `\n` and the terminal `\n`. That line must be a
+  valid JSON object unless the file has no lines. If the complete final line is
+  invalid JSON, not an object, or empty, the invocation fails closed with
+  `EX_DATAERR` and leaves the file unchanged.
+
+The repair path does not quarantine files and does not truncate a
+newline-terminated corrupt record by default. It also does not scan every
+historical line on each append; it validates only the active file's complete
+final line and any unterminated tail that can affect the next append.
 
 The append path uses `OpenOptions::append(true).create(true)`. The lock, not
 append mode alone, provides cross-process serialization. The design treats NFS,
@@ -351,15 +367,15 @@ mpsc-log .odw/run-20260629/journal.jsonl \
 The library exposes a semantic error enum. The binary maps it to `sysexits`
 style process statuses:
 
-| Exit | Name           | Condition                                                                                |
-| ---- | -------------- | ---------------------------------------------------------------------------------------- |
-| 0    | `OK`           | Record appended.                                                                         |
-| 64   | `EX_USAGE`     | Invalid CLI syntax, unsupported `jo` option, non-object root, or duplicate invalid path. |
-| 65   | `EX_DATAERR`   | Invalid JSON, invalid TOML, invalid schema coercion, or malformed sidecar value.         |
-| 73   | `EX_CANTCREAT` | Parent directory, lock file, journal, or rotated file cannot be created.                 |
-| 74   | `EX_IOERR`     | Write, flush, truncate, rename, compression, or filesystem metadata failure.             |
-| 75   | `EX_TEMPFAIL`  | Lock timeout.                                                                            |
-| 78   | `EX_CONFIG`    | Sidecar configuration is syntactically valid TOML but semantically invalid.              |
+| Exit | Name           | Condition                                                                                            |
+| ---- | -------------- | ---------------------------------------------------------------------------------------------------- |
+| 0    | `OK`           | Record appended.                                                                                     |
+| 64   | `EX_USAGE`     | Invalid CLI syntax, unsupported `jo` option, non-object root, or duplicate invalid path.             |
+| 65   | `EX_DATAERR`   | Invalid JSON, invalid TOML, invalid schema coercion, corrupt final line, or malformed sidecar value. |
+| 73   | `EX_CANTCREAT` | Parent directory, lock file, journal, or rotated file cannot be created.                             |
+| 74   | `EX_IOERR`     | Write, flush, truncate, rename, compression, or filesystem metadata failure.                         |
+| 75   | `EX_TEMPFAIL`  | Lock timeout.                                                                                        |
+| 78   | `EX_CONFIG`    | Sidecar configuration is syntactically valid TOML but semantically invalid.                          |
 
 Diagnostics go to standard error as one line:
 
@@ -384,7 +400,8 @@ The implementation must satisfy these properties:
 | Concurrent successful invocations produce the same number of complete records as successes.                          | Stress test with many processes writing one journal.                                                         |
 | Rotation preserves successful records across active, plain rotated, scheduled rotated, and compressed rotated files. | End-to-end test that forces size and scheduled rotation under concurrent writers and counts decoded records. |
 | Detected write failures do not leave a partial final line.                                                           | Fault-injection adapter test that fails after partial writes and checks truncate repair.                     |
-| Crash-like partial tails are repaired before the next append.                                                        | Fixture with malformed trailing bytes followed by a successful append.                                       |
+| Unterminated partial tails are repaired before the next append when repair is enabled.                               | Fixture with malformed trailing bytes followed by a successful append.                                       |
+| Newline-terminated corrupt final records fail closed.                                                                | Fixture ending in `\n` with an invalid final line returns `EX_DATAERR` without truncating.                   |
 | CLI coercion follows the selected `jo` field syntax.                                                                 | Parameterized examples cover the accepted `jo`-inspired behaviours and last-wins duplicate paths.            |
 | Sidecar/CLI precedence is deterministic.                                                                             | Table-driven tests covering defaults, schema coercion, explicit flags, and `timestamp`.                      |
 

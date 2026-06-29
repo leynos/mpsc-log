@@ -228,7 +228,8 @@ artefact rather than trusting a caller's informal summary.
 - A failed invocation leaves the previous log state readable and does not
   produce partial JSON records.
 - Diagnostics are useful to agents and humans: invalid arguments, timeout,
-  malformed sidecar configuration, and file-system failures are distinguishable.
+  malformed sidecar configuration, final-line corruption, and file-system
+  failures are distinguishable.
 - Journal writes add low enough overhead that agents can record telemetry at
   phase and attempt boundaries without changing workflow scheduling decisions.
 
