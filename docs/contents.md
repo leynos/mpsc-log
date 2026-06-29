@@ -45,6 +45,8 @@ set.
 
 ## Design artefacts
 
+- [ADR 001: Testing strategy](adr-001-testing-strategy.md) records how the
+  repository's required testing prongs apply to the `mpsc-log` design.
 - [mpsc-log event schema](mpsc-log-event-schema.json) defines the initial JSON
   Schema for journal records.
 - [mpsc-log sidecar example](mpsc-log-sidecar.example.toml) shows the TOML
