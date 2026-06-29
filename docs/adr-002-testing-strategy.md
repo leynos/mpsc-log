@@ -54,8 +54,10 @@ confidence.
   complete records as successful process exits.
 - Verify that size-only rotation, scheduled rotation, gzip compression, and
   retention preserve successful records.
-- Verify that malformed tails and injected write failures do not leave partial
-  final records after the next invocation.
+- Verify that malformed unterminated tails and injected write failures do not
+  leave partial final records after the next invocation.
+- Verify that newline-terminated corrupt final records fail closed without
+  truncation.
 - Verify the selected `jo` field syntax, object-root enforcement, sidecar
   precedence, schema-guided coercion, explicit coercion flags, default
   timestamp insertion, and stable exit-code mapping.
@@ -133,7 +135,7 @@ The testing prongs apply as follows:
   `config`, `record`, `errors`, `clock`, and rotation-planning helpers.
 - Behavioural tests with `rstest-bdd` cover user-visible CLI behaviours:
   successful append, unsupported syntax, sidecar precedence, diagnostics,
-  timeout, repair, and rotation scenarios.
+  timeout, repair, corrupt-final-line, and rotation scenarios.
 - Snapshot tests with `insta` cover stable outputs that reviewers benefit from
   seeing as artefacts: help text, one-line diagnostics, canonical fixture
   records after nondeterministic normalization, and rotation filename matrices.
@@ -143,7 +145,7 @@ The testing prongs apply as follows:
   df12-build fixture commands.
 - Property tests with `proptest` cover input and state ranges for field
   parsing, object-path insertion, type coercion, merge precedence, partial-tail
-  repair, and rotation-plan invariants.
+  repair, final-line validation, and rotation-plan invariants.
 - Bounded model checks with `kani` cover compact pure planners where exhaustive
   small-state exploration is more useful than randomized testing, especially
   generation shifting and scheduled-period retention.
@@ -184,8 +186,8 @@ The testing prongs apply as follows:
 4. Add concurrency, repair, and rotation hardening as the filesystem adapter
    lands.
    - Exercise multi-process contention, lock timeout, partial-tail repair,
-     injected I/O failures, size rotation, scheduled rotation, gzip, and
-     retention.
+     newline-terminated corrupt final records, injected I/O failures, size
+     rotation, scheduled rotation, gzip, and retention.
 5. Add model checking or proofs only when the implementation introduces a pure
    invariant-bearing planner or lemma.
    - Prefer `kani` for bounded state machines and Verus for explicit lemmas
