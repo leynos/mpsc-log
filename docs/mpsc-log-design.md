@@ -6,9 +6,10 @@
 - **Companion documents:**
   - [Terms of reference](terms-of-reference.md).
   - [Context](context.md).
+  - [Lock file naming ADR](adr-001-lock-file-naming.md).
+  - [Testing strategy ADR](adr-002-testing-strategy.md).
   - [Event schema](mpsc-log-event-schema.json).
   - [Sidecar example](mpsc-log-sidecar.example.toml).
-  - [Testing strategy ADR](adr-001-testing-strategy.md).
   - [Users' guide](users-guide.md).
   - [Developer guide](developers-guide.md).
 
@@ -122,11 +123,14 @@ flowchart LR
 
 Figure 1: Runtime component topology.
 
-The lock file is the coordination boundary. `mpsc-log` derives it from the
-journal path as `<journal filename>.lock` in the same directory. Every
-invocation creates parent directories first, opens the lock file with create
-semantics, acquires an exclusive lock, and only then reads configuration,
-repairs the journal tail, rotates, compresses, and appends.
+The lock file is the coordination boundary. The naming decision is recorded in
+[ADR 001: Lock file naming](adr-001-lock-file-naming.md): `mpsc-log` appends
+`.lock` to the complete journal filename in the same directory, reserves
+`.lock` journal filenames, and rejects journal paths whose derived sidecar path
+would equal the journal path. Every invocation creates parent directories
+first, opens the lock file with create semantics, acquires an exclusive lock,
+and only then reads configuration, repairs the journal tail, rotates,
+compresses, and appends.
 
 ## 5. CLI contract
 
@@ -160,7 +164,10 @@ fail with `EX_USAGE`. The root is always an object.
 
 The sidecar path replaces the journal filename extension with `.toml`; if the
 journal has no extension, the sidecar path appends `.toml`. For example,
-`run.jsonl` uses `run.toml`, and `run` uses `run.toml`.
+`run.jsonl` uses `run.toml`, and `run` uses `run.toml`. This is a configuration
+sharing rule, not a lock naming rule: accepted same-stem journals such as `run`,
+`run.jsonl`, and `run.ndjson` have distinct lock files but share `run.toml`.
+Callers needing independent sidecars must choose distinct stems or directories.
 
 The sidecar shape is defined by
 [mpsc-log-sidecar.example.toml](mpsc-log-sidecar.example.toml). Configuration
@@ -355,7 +362,7 @@ The command writes nothing to standard output on success.
 ## 11. Correctness properties and verification
 
 The testing strategy is recorded in
-[ADR 001: Testing strategy](adr-001-testing-strategy.md). That ADR maps the
+[ADR 002: Testing strategy](adr-002-testing-strategy.md). That ADR maps the
 repository's required unit, behavioural, snapshot, end-to-end, property-based,
 bounded-model, and proof prongs to the design surfaces below.
 
@@ -404,7 +411,6 @@ item explicitly commits to a supported API.
 ## 13. Deferred ADRs
 
 - Accepted `jo` subset and last-wins duplicate-key handling.
-- Lock-file naming and filesystem support policy.
 - Rotation naming, compression, and retention defaults.
 - CLI-only product boundary versus public Rust library API.
 

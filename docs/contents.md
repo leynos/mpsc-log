@@ -45,7 +45,10 @@ set.
 
 ## Design artefacts
 
-- [ADR 001: Testing strategy](adr-001-testing-strategy.md) records how the
+- [ADR 001: Lock file naming](adr-001-lock-file-naming.md) records how the
+  journal lock path is derived and which coordination/configuration suffixes
+  are reserved.
+- [ADR 002: Testing strategy](adr-002-testing-strategy.md) records how the
   repository's required testing prongs apply to the `mpsc-log` design.
 - [mpsc-log event schema](mpsc-log-event-schema.json) defines the initial JSON
   Schema for journal records.
