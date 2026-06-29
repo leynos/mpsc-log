@@ -71,6 +71,11 @@ The Rust implementation baseline is conservative:
 
 Table 1: Dependency baseline for implementation.
 
+The gzip choice is a conservative baseline, not a settled performance decision.
+The roadmap requires a compression backend benchmark before gzip implementation
+so `gzp` and `gzippy` can be evaluated against `flate2` for speed,
+atomic-output integration, dependency risk, and portability.[^gzp] [^gzippy]
+
 ## 3. Goals and non-goals
 
 ### 3.1 Goals
@@ -448,3 +453,9 @@ item explicitly commits to a supported API.
 
 [^flate2]: [`flate2` crate documentation](https://docs.rs/flate2/latest/flate2/),
     version 1.1.9, accessed 2026-06-29.
+
+[^gzp]: [`gzp` crate documentation](https://docs.rs/gzp/latest/gzp/),
+    version 2.0.2, accessed 2026-06-29.
+
+[^gzippy]: [`gzippy` crate documentation](https://docs.rs/gzippy/latest/gzippy/),
+    version 0.8.0, accessed 2026-06-29.
