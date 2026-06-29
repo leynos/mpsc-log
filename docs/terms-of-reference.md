@@ -4,13 +4,16 @@
 - **Audience:** Product owner, engineering maintainers, agent-workflow
   authors, and future design reviewers.
 - **Last substantive revision:** 2026-06-29.
-- **Companion documents:** [Documentation contents](contents.md),
-  [users' guide](users-guide.md), [developer guide](developers-guide.md),
-  [repository layout](repository-layout.md),
-  [documentation style guide](documentation-style-guide.md),
-  [context](context.md), [technical design](mpsc-log-design.md),
-  [event schema](mpsc-log-event-schema.json),
-  and [sidecar example](mpsc-log-sidecar.example.toml).
+- **Companion documents:**
+  - [Documentation contents](contents.md).
+  - [Users' guide](users-guide.md).
+  - [Developer guide](developers-guide.md).
+  - [Repository layout](repository-layout.md).
+  - [Documentation style guide](documentation-style-guide.md).
+  - [Context](context.md).
+  - [Technical design](mpsc-log-design.md).
+  - [Event schema](mpsc-log-event-schema.json).
+  - [Sidecar example](mpsc-log-sidecar.example.toml).
 
 ## 1. Background and motivation
 
