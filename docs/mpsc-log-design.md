@@ -6,6 +6,7 @@
 - **Companion documents:** [Terms of reference](terms-of-reference.md),
   [context](context.md), [event schema](mpsc-log-event-schema.json),
   [sidecar example](mpsc-log-sidecar.example.toml),
+  [testing strategy ADR](adr-001-testing-strategy.md),
   [users' guide](users-guide.md), and [developer guide](developers-guide.md).
 
 ## 1. Context
@@ -345,6 +346,11 @@ mpsc-log: <error-code>: <path-or-field>: <human-readable detail>
 The command writes nothing to standard output on success.
 
 ## 11. Correctness properties and verification
+
+The testing strategy is recorded in
+[ADR 001: Testing strategy](adr-001-testing-strategy.md). That ADR maps the
+repository's required unit, behavioural, snapshot, end-to-end,
+property-based, bounded-model, and proof prongs to the design surfaces below.
 
 The implementation must satisfy these properties:
 

@@ -8,9 +8,11 @@ dependencies and source citations.
 
 The primary source documents are [terms of reference](terms-of-reference.md),
 [technical design](mpsc-log-design.md), [context](context.md),
-[event schema](mpsc-log-event-schema.json), and
-[sidecar example](mpsc-log-sidecar.example.toml). No RFCs or ADRs exist yet,
-so the first phase records the decisions that would otherwise force rework.
+[event schema](mpsc-log-event-schema.json),
+[sidecar example](mpsc-log-sidecar.example.toml), and
+[ADR 001: Testing strategy](adr-001-testing-strategy.md). No RFCs exist yet,
+so the first phase records the remaining decisions that would otherwise force
+rework.
 
 ## 1. Foundational contracts and build spine
 
@@ -81,7 +83,8 @@ same CLI, domain, filesystem, and test seams. See mpsc-log-design.md §§2, 4,
 - [ ] 1.2.3. Build deterministic test seams for time and filesystem effects.
   - Requires 1.2.1 and 1.2.2.
   - See mpsc-log-design.md §§7, 10-12 and
-    docs/reliable-testing-in-rust-via-dependency-injection.md.
+    docs/reliable-testing-in-rust-via-dependency-injection.md. See
+    adr-001-testing-strategy.md.
   - [ ] Provide injectable clock and filesystem adapter boundaries for record
     timestamps, fault injection, and deterministic rotation fixtures.
   - Success: failures such as partial writes, metadata errors, and fixed
@@ -259,7 +262,7 @@ and terms-of-reference.md §§5, 7.
     decodable JSON object lines as successful child processes.
 - [ ] 3.3.2. Add pairwise CLI/configuration combination coverage.
   - Requires phase 2 and 3.3.1.
-  - See mpsc-log-design.md §11.
+  - See mpsc-log-design.md §11 and adr-001-testing-strategy.md.
   - Success: the suite covers `jo` syntax form, coercion source, object path,
     sidecar default, rotation schedule, rotation state, and lock contention.
 
@@ -356,7 +359,7 @@ mpsc-log-design.md §11 and terms-of-reference.md §7.
 
 - [ ] 4.4.1. Build the concurrent rotation end-to-end suite.
   - Requires steps 4.1-4.3.
-  - See mpsc-log-design.md §11.
+  - See mpsc-log-design.md §11 and adr-001-testing-strategy.md.
   - Success: forced size and scheduled rotations under concurrent writers
     preserve the decoded record count across active, plain, scheduled, and
     compressed files.
