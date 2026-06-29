@@ -106,13 +106,13 @@ and end-to-end tests. Stable text or file-shape contracts get narrow snapshots.
 Concurrency, rotation, and repair get stress, fault-injection, and model-based
 coverage. Formal proof is reserved for compact contractual invariants.
 
-| Topic | Option A | Option B | Option C |
-| ----- | -------- | -------- | -------- |
-| Concurrency confidence | Weak | Strong but costly | Strong where required |
-| Review size | Small | Often too large | Review-sized by risk |
-| Formal methods | Absent | Over-applied | Applied to compact invariants |
-| Alignment with `AGENTS.md` | Incomplete | Literal but inefficient | Complete and targeted |
-| Maintenance cost | Low initially | High | Proportional to risk |
+| Topic                      | Option A      | Option B                | Option C                      |
+| -------------------------- | ------------- | ----------------------- | ----------------------------- |
+| Concurrency confidence     | Weak          | Strong but costly       | Strong where required         |
+| Review size                | Small         | Often too large         | Review-sized by risk          |
+| Formal methods             | Absent        | Over-applied            | Applied to compact invariants |
+| Alignment with `AGENTS.md` | Incomplete    | Literal but inefficient | Complete and targeted         |
+| Maintenance cost           | Low initially | High                    | Proportional to risk          |
 
 _Table 1: Comparison of testing strategy options._
 
