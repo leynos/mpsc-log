@@ -1,4 +1,4 @@
-# Architectural decision record (ADR) 001: Testing strategy
+# Architectural decision record (ADR) 002: Testing strategy
 
 ## Status
 
