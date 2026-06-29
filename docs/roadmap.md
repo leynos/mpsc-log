@@ -251,14 +251,16 @@ and validates the design's append-plus-repair claim. See mpsc-log-design.md
 - [ ] 3.2.2. Implement partial-tail repair before every append.
   - Requires 3.2.1.
   - See mpsc-log-design.md §§6-7, 11.
-  - Success: malformed trailing bytes and unterminated final records are
-    removed before a new valid record is appended.
+  - Success: unterminated final records are removed before a new valid record
+    is appended when repair is enabled, while newline-terminated invalid final
+    records fail closed with `EX_DATAERR` and leave the file unchanged.
 - [ ] 3.2.3. Build the fault-injection filesystem coverage for write, truncate,
   rename, compression, and metadata failures.
   - Requires 1.2.3, 3.2.1, and 3.2.2.
   - See mpsc-log-design.md §§7, 10-12.
   - Success: each documented filesystem failure class has a deterministic
-    assertion for journal state and exit-code mapping.
+    assertion for journal state and exit-code mapping, including the invalid
+    newline-terminated final-line case.
 
 ### 3.3. Demonstrate concurrent append correctness end to end
 
@@ -447,8 +449,9 @@ and keeps deferred analysis work out of the core CLI. See terms-of-reference.md
   - Requires 5.2.1.
   - See mpsc-log-design.md §§7, 10-11 and terms-of-reference.md §§7-8.
   - Success: operators can distinguish invalid arguments, malformed sidecars,
-    timeout, directory creation failure, partial-tail repair, and rotation
-    failure from command output and exit status.
+    timeout, directory creation failure, partial-tail repair,
+    newline-terminated final-line corruption, and rotation failure from command
+    output and exit status.
 - [ ] 5.2.3. Add a release smoke script for the documented workflows.
   - Requires 5.2.1 and 5.2.2.
   - See mpsc-log-design.md §§5-11.
