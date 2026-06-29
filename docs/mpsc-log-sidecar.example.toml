@@ -1,0 +1,28 @@
+[rotation]
+schedule = "none"
+max_bytes = 1048576
+plain_generations = 4
+compressed_generations = 32
+gzip_after_plain_generations = true
+
+[locking]
+timeout_ms = 5000
+repair_partial_tail = true
+
+[defaults]
+schema_version = 1
+event = "workflow.event"
+
+[schema]
+"run.id" = "string"
+"run.workflow" = "string"
+"task.work_items" = "number"
+"task.changed_files" = "number"
+"task.dependency_depth" = "number"
+"attempt.round" = "number"
+"attempt.duration_ms" = "number"
+"coderabbit.http_status" = "number"
+"coderabbit.wait_ms" = "number"
+"coderabbit.retry" = "boolean"
+"coderabbit.deferred" = "boolean"
+"audit.finding_count" = "number"

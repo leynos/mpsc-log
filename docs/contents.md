@@ -5,6 +5,14 @@ set.
 
 ## Project guides
 
+- [Context](context.md) defines the project vocabulary for journals,
+  sidecars, rotation, and df12-build telemetry.
+- [Design](mpsc-log-design.md) specifies the CLI, file formats, locking,
+  rotation, failure handling, and verification strategy for `mpsc-log`.
+- [Terms of reference](terms-of-reference.md) defines the product problem,
+  users, scope boundaries, constraints, and open questions for `mpsc-log`.
+- [Roadmap](roadmap.md) translates the design and terms of reference into
+  review-sized implementation tasks.
 - [User guide](users-guide.md) explains how to use the generated project and
   its public build and test commands.
 - [Developer guide](developers-guide.md) explains the local workflow and
@@ -33,3 +41,11 @@ set.
 - [Scripting standards](scripting-standards.md) explains the preferred Python
   scripting stack, command execution patterns, and test expectations for helper
   scripts.
+
+
+## Design artefacts
+
+- [mpsc-log event schema](mpsc-log-event-schema.json) defines the initial JSON
+  Schema for journal records.
+- [mpsc-log sidecar example](mpsc-log-sidecar.example.toml) shows the TOML
+  configuration shape used by the design.
