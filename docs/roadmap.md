@@ -6,13 +6,17 @@ Each phase carries one testable idea at the GIST level; each step answers a
 sequencing question; each task is a review-sized execution unit with explicit
 dependencies and source citations.
 
-The primary source documents are [terms of reference](terms-of-reference.md),
-[technical design](mpsc-log-design.md), [context](context.md),
-[event schema](mpsc-log-event-schema.json),
-[sidecar example](mpsc-log-sidecar.example.toml), and
-[ADR 001: Testing strategy](adr-001-testing-strategy.md). No RFCs exist yet,
-so the first phase records the remaining decisions that would otherwise force
-rework.
+The primary source documents are:
+
+- [terms of reference](terms-of-reference.md);
+- [technical design](mpsc-log-design.md);
+- [context](context.md);
+- [event schema](mpsc-log-event-schema.json);
+- [sidecar example](mpsc-log-sidecar.example.toml); and
+- [ADR 001: Testing strategy](adr-001-testing-strategy.md).
+
+No RFCs exist yet, so the first phase records the remaining decisions that
+would otherwise force rework.
 
 ## 1. Foundational contracts and build spine
 
@@ -29,8 +33,8 @@ risks are concurrency and persistence.
 
 This step answers what `mpsc-log` v1 will promise to callers and what it will
 explicitly leave out. Its outcome informs crate layout, user documentation,
-error handling, and future compatibility work. See
-mpsc-log-design.md §§3, 5, 8, 12-13 and terms-of-reference.md §§6, 8-10.
+error handling, and future compatibility work. See mpsc-log-design.md §§3, 5,
+8, 12-13 and terms-of-reference.md §§6, 8-10.
 
 - [ ] 1.1.1. Record the accepted `jo` subset and duplicate-key behaviour in
   an ADR.
@@ -105,8 +109,8 @@ examples before the filesystem protocol grows more complex.
 
 This step answers whether the accepted `jo` subset can be implemented without
 breaking the object-root logging contract. It informs sidecar coercion, error
-classification, and the later combinatorial test matrix. See
-mpsc-log-design.md §§2, 5, 10-12 and terms-of-reference.md §§2, 6, 8.
+classification, and the later combinatorial test matrix. See mpsc-log-design.md
+§§2, 5, 10-12 and terms-of-reference.md §§2, 6, 8.
 
 - [ ] 2.1.1. Implement positional argument parsing for the journal path and
   raw field tail.
@@ -138,9 +142,8 @@ mpsc-log-design.md §§2, 5, 10-12 and terms-of-reference.md §§2, 6, 8.
 
 This step answers whether configuration, schema coercion, defaults, and the
 generated timestamp can merge deterministically. Its outcome informs the
-external JSONL contract and df12-build event examples. See
-mpsc-log-design.md §§2, 6, 9, 11-12,
-mpsc-log-sidecar.example.toml, and mpsc-log-event-schema.json.
+external JSONL contract and df12-build event examples. See mpsc-log-design.md
+§§2, 6, 9, 11-12, mpsc-log-sidecar.example.toml, and mpsc-log-event-schema.json.
 
 - [ ] 2.2.1. Implement sidecar path derivation, TOML loading, and semantic
   validation.
@@ -166,8 +169,8 @@ mpsc-log-sidecar.example.toml, and mpsc-log-event-schema.json.
 
 This step answers whether the command can complete a non-concurrent append
 workflow with stable user-visible behaviour. It informs the later lock and
-repair protocol because this slice defines the line format and diagnostics.
-See mpsc-log-design.md §§3, 7, 10-12 and terms-of-reference.md §§5-7.
+repair protocol because this slice defines the line format and diagnostics. See
+mpsc-log-design.md §§3, 7, 10-12 and terms-of-reference.md §§5-7.
 
 - [ ] 2.3.1. Implement compact JSON object serialization and newline append.
   - Requires steps 2.1-2.2.
@@ -195,15 +198,15 @@ workflows can treat journal writes as boring infrastructure rather than a
 source of telemetry loss.
 
 This phase turns the single-writer command into the product promised by the
-terms of reference. It focuses on the one risk that motivates the tool:
-several independent agents calling the same executable at the same time.
+terms of reference. It focuses on the one risk that motivates the tool: several
+independent agents calling the same executable at the same time.
 
 ### 3.1. Prove first-write and lock acquisition are safe
 
 This step answers whether concurrent invocations can create the same journal
 and coordination artefacts without truncating or colliding. It informs the
-critical-section protocol and timeout behaviour. See mpsc-log-design.md §§4,
-7, 10-11 and terms-of-reference.md §§6-8.
+critical-section protocol and timeout behaviour. See mpsc-log-design.md §§4, 7,
+10-11 and terms-of-reference.md §§6-8.
 
 - [ ] 3.1.1. Create missing parent directories and coordination artefacts
   before locking.
@@ -252,8 +255,8 @@ and validates the design's append-plus-repair claim. See mpsc-log-design.md
 
 This step answers whether many real processes can use `mpsc-log` at once and
 produce one complete record per successful command. It informs release
-readiness for the first agent-workflow adoption. See mpsc-log-design.md §11
-and terms-of-reference.md §§5, 7.
+readiness for the first agent-workflow adoption. See mpsc-log-design.md §11 and
+terms-of-reference.md §§5, 7.
 
 - [ ] 3.3.1. Build a multi-process concurrent append stress harness.
   - Requires steps 3.1-3.2.
@@ -324,8 +327,8 @@ mpsc-log-design.md §§2, 8, 11 and terms-of-reference.md §§6-7.
 This step answers whether hourly, daily, and weekly modes rotate at period
 boundaries while still splitting busy periods by bytes. It informs the final
 operator contract because scheduled rotation is where naming expectations are
-most visible. See mpsc-log-design.md §§6, 8, 11,
-mpsc-log-sidecar.example.toml, and context.md.
+most visible. See mpsc-log-design.md §§6, 8, 11, mpsc-log-sidecar.example.toml,
+and context.md.
 
 - [ ] 4.3.1. Implement period calculation for `hourly`, `daily`, and
   `weekly` schedules.
@@ -372,9 +375,9 @@ mpsc-log-design.md §11 and terms-of-reference.md §7.
 ## 5. df12-build telemetry adoption
 
 Idea: if the finished CLI can emit the first df12-build journal taxonomy with
-documented sidecar defaults and realistic invocation fixtures, the workflow
-can start collecting real-run evidence without `mpsc-log` becoming an analysis
-or dashboard product.
+documented sidecar defaults and realistic invocation fixtures, the workflow can
+start collecting real-run evidence without `mpsc-log` becoming an analysis or
+dashboard product.
 
 This phase connects the generic journalling tool to its first concrete use
 case. It packages examples and verification around phase timing, review rounds,
@@ -412,8 +415,8 @@ terms-of-reference.md §§2, 5-7.
 
 This step answers whether workflow authors and operators can use the tool
 correctly without reading implementation code. It informs v1 release readiness
-and keeps deferred analysis work out of the core CLI. See
-terms-of-reference.md §§3-7 and mpsc-log-design.md §§3, 9-10.
+and keeps deferred analysis work out of the core CLI. See terms-of-reference.md
+§§3-7 and mpsc-log-design.md §§3, 9-10.
 
 - [ ] 5.2.1. Update the users' guide with complete operational examples.
   - Requires 5.1.3.
