@@ -50,6 +50,9 @@ set.
   are reserved.
 - [ADR 002: Testing strategy](adr-002-testing-strategy.md) records how the
   repository's required testing prongs apply to the `mpsc-log` design.
+- [ADR 003: `jo` field syntax and duplicate keys](adr-003-jo-field-syntax-and-duplicate-keys.md)
+  records the selected `jo`-inspired field syntax and last-wins duplicate-path
+  semantics.
 - [mpsc-log event schema](mpsc-log-event-schema.json) defines the initial JSON
   Schema for journal records.
 - [mpsc-log sidecar example](mpsc-log-sidecar.example.toml) shows the TOML

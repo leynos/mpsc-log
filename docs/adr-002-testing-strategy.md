@@ -56,9 +56,9 @@ confidence.
   retention preserve successful records.
 - Verify that malformed tails and injected write failures do not leave partial
   final records after the next invocation.
-- Verify the accepted `jo` subset, object-root enforcement, sidecar precedence,
-  schema-guided coercion, explicit coercion flags, default timestamp insertion,
-  and stable exit-code mapping.
+- Verify the selected `jo` field syntax, object-root enforcement, sidecar
+  precedence, schema-guided coercion, explicit coercion flags, default
+  timestamp insertion, and stable exit-code mapping.
 - Verify df12-build fixture records against the JSON Schema and sidecar
   coercion contract.
 

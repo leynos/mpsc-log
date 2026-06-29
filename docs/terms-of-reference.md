@@ -54,10 +54,10 @@ log easy to append, stream, grep, split, and ingest into later tools without
 requiring the whole file to be rewritten.
 
 The command accepts the log path as its first argument. Later arguments
-describe fields using `jo`-style key and value words, including type coercion
-flags and object paths. Unlike `jo`, the root value must always be an object:
-array roots are out of scope because each log entry needs named fields and
-configurable defaults.
+describe fields using selected `jo`-inspired key and value words, including
+type coercion flags and object paths. The CLI is not textually compatible with
+all `jo` output: the root value must always be an object, and duplicate writes
+to the same object path use last-wins semantics.
 
 The default entry includes a `timestamp` field containing a Coordinated
 Universal Time (UTC) timestamp captured when the command is invoked. The
@@ -107,8 +107,8 @@ The current alternatives each solve part of the problem:
 - `logrotate` can rotate files, but it is scheduled external maintenance rather
   than a per-write safety mechanism integrated with concurrent appends.
 
-The gap is a narrowly scoped CLI that combines `jo`-style record construction
-with safe append and rotation behaviour for one local JSONL file.
+The gap is a narrowly scoped CLI that combines selected `jo`-inspired record
+construction with safe append and rotation behaviour for one local JSONL file.
 
 ## 4. Users and stakeholders
 
@@ -148,8 +148,8 @@ artefact rather than trusting a caller's informal summary.
 
 - Accept a log-file path as the first CLI argument and interpret following
   arguments as record fields.
-- Support the `jo`-style key/value syntax needed for object records, including
-  type coercion flags and object paths.
+- Support the selected `jo`-inspired key/value syntax needed for object
+  records, including type coercion flags and object paths.
 - Reject any invocation that would produce a non-object root.
 - Add a default `timestamp` field using an invocation-time UTC timestamp unless
   configuration or CLI input explicitly overrides it according to the final
@@ -187,8 +187,8 @@ artefact rather than trusting a caller's informal summary.
 - Preserving chronological file order by timestamp is out of scope. The default
   timestamp is captured at invocation time, so entries can appear out of order
   when one caller waits behind another.
-- Full `jo` feature parity is out of scope where it conflicts with the
-  object-root logging contract.
+- Full `jo` feature parity and textual duplicate-key preservation are out of
+  scope where they conflict with the object-root logging contract.
 - Cross-host distributed locking is out of scope unless a later design
   explicitly accepts the complexity and platform constraints.
 - Querying, filtering, formatting, or editing historical log entries is out of
@@ -248,7 +248,8 @@ artefact rather than trusting a caller's informal summary.
 ### 8.1 Hard constraints
 
 - The first CLI parameter is the log-file path.
-- Later parameters are key/value words using the accepted `jo`-style syntax.
+- Later parameters are key/value words using the accepted `jo`-inspired
+  syntax.
 - The root record must be a JSON object.
 - The default lock timeout is five seconds.
 - The default rotation threshold is 1 MiB.
@@ -298,8 +299,9 @@ artefact rather than trusting a caller's informal summary.
 
 ### 8.3 Dependencies
 
-- The `jo` manual is the behavioural reference for compatible argument syntax,
-  type coercion flags, and object-path expectations.[^1]
+- The `jo` manual is prior art for selected argument syntax, type coercion
+  flags, and object-path expectations; `mpsc-log` compatibility is limited by
+  the object-root and last-wins decisions.[^1]
 - RFC 3339 is the timestamp reference for default `timestamp` values.[^2]
 - The future technical design must choose Rust crates or platform APIs for JSON
   serialization, TOML parsing, file locking, gzip compression, time handling,
@@ -309,9 +311,9 @@ artefact rather than trusting a caller's informal summary.
 
 | Question                                             | Why it matters                                                                                                                                                         | Criteria for resolution                                                                                                        | Suggested path                           |
 | ---------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------- |
-| Which exact subset of `jo` syntax is in scope?       | `jo` includes arrays, file-value operators, duplicate-key behaviour, object paths, and coercion flags that may conflict with an object-root log contract.              | The design records accepted, rejected, and modified syntax with examples.                                                      | Design spike against `jo` examples.      |
+| Which exact subset of `jo` syntax is in scope?       | `jo` includes arrays, file-value operators, duplicate-key behaviour, object paths, and coercion flags that may conflict with an object-root log contract.              | The design records accepted, rejected, and modified syntax with examples.                                                      | Resolved by ADR 003.                     |
 | What are the sidecar precedence rules?               | Defaults, schema coercion, CLI values, and `timestamp` overrides can conflict.                                                                                         | A precedence table defines every conflict outcome.                                                                             | Technical design.                        |
-| How should duplicate keys resolve?                   | JSON permits duplicate object names textually, but consumers often collapse them.                                                                                      | The product chooses reject, last-wins, first-wins, or compatibility behaviour.                                                 | ADR candidate.                           |
+| How should duplicate keys resolve?                   | JSON permits duplicate object names textually, but consumers often collapse them.                                                                                      | The product chooses reject, last-wins, first-wins, or compatibility behaviour.                                                 | Resolved by ADR 003.                     |
 | What does "gzipping after 4 rotations" mean exactly? | Retention, naming, and compression timing affect concurrency and user expectations.                                                                                    | The rotation policy specifies filenames, retention count, compression trigger, and whether recent rotations remain plain text. | Technical design.                        |
 | What lock protects rotation and sidecar reads?       | Append-only locking may not be enough when a process rotates while others are opening or creating files.                                                               | The design names the lock artefact and the critical sections it protects.                                                      | Technical design and stress tests.       |
 | What platforms are supported at v1?                  | File-locking and atomic rename semantics differ across Unix, Windows, and network filesystems.                                                                         | The project declares supported platforms and test coverage.                                                                    | ADR candidate.                           |
@@ -350,7 +352,6 @@ vocabulary for:
 
 ### 10.2 ADR candidates
 
-- Accepted `jo` compatibility subset and deviations.
 - Locking and atomic-write strategy across supported platforms.
 - Rotation naming, retention, and compression policy.
 - CLI-only product boundary versus supported library API.
@@ -358,8 +359,8 @@ vocabulary for:
 ### 10.3 Downstream readiness
 
 This document is complete enough to start a technical design. The design should
-not begin implementation until the timestamp standard, `jo` compatibility
-subset, sidecar precedence, rotation policy, and platform support questions are
+not begin implementation until the timestamp standard, selected `jo` field
+syntax, sidecar precedence, rotation policy, and platform support questions are
 resolved or explicitly deferred.
 
 ## Appendix A. References
