@@ -1,0 +1,83 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/leynos/mpsc-log/docs/mpsc-log-event-schema.json",
+  "title": "mpsc-log journal record",
+  "type": "object",
+  "additionalProperties": true,
+  "required": ["timestamp"],
+  "properties": {
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "RFC 3339 UTC invocation timestamp."
+    },
+    "schema_version": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "event": {
+      "type": "string",
+      "minLength": 1
+    },
+    "run": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "id": { "type": "string" },
+        "workflow": { "type": "string" },
+        "sidecar_dir": { "type": "string" }
+      }
+    },
+    "task": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "id": { "type": "string" },
+        "phase": { "type": "string" },
+        "work_items": { "type": "integer", "minimum": 0 },
+        "changed_files": { "type": "integer", "minimum": 0 },
+        "dependency_depth": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "attempt": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "agent": { "type": "string" },
+        "phase": { "type": "string" },
+        "round": { "type": "integer", "minimum": 1 },
+        "status": { "type": "string" },
+        "duration_ms": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "coderabbit": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "status": { "type": "string" },
+        "http_status": { "type": "integer", "minimum": 100, "maximum": 599 },
+        "wait_ms": { "type": "integer", "minimum": 0 },
+        "retry": { "type": "boolean" },
+        "deferred": { "type": "boolean" }
+      }
+    },
+    "audit": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "severity": { "type": "string" },
+        "lane": { "type": "string" },
+        "finding_count": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "defect": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "source": { "type": "string" },
+        "escaped_from": { "type": "string" },
+        "severity": { "type": "string" }
+      }
+    }
+  }
+}
