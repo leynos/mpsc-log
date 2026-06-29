@@ -157,8 +157,11 @@ external JSONL contract and df12-build event examples. See mpsc-log-design.md
   - Requires 2.1.3 and 2.2.1.
   - See mpsc-log-design.md §§6, 9, 11 and
     mpsc-log-event-schema.json.
-  - Success: sidecar defaults, CLI fields, explicit flags, schema entries,
-    and duplicate paths resolve according to one table-driven contract.
+  - Success: sidecar defaults seed the record; CLI fields win over defaults
+    and earlier duplicate paths; CLI coercion uses explicit `-s`, `-n`, or
+    `-b` flags before schema entries and default `jo` inference; and the
+    generated `timestamp` is inserted only if no timestamp exists after
+    defaults and CLI fields.
 - [ ] 2.2.3. Generate the default RFC 3339 UTC `timestamp` field.
   - Requires 1.2.3 and 2.2.2.
   - See mpsc-log-design.md §§2, 6 and terms-of-reference.md §§2, 6, 8.
@@ -397,7 +400,9 @@ terms-of-reference.md §§2, 5-7.
   - See mpsc-log-design.md §9 and terms-of-reference.md §§2, 5-7.
   - Success: fixtures cover `phase.started`, `phase.finished`,
     `review.round`, `task.finished`, `coderabbit.attempt`, `audit.finding`,
-    and `defect.escape`.
+    and `defect.escape`, including CodeRabbit wait/throttle variants, audit
+    yield by severity and lane, remediation-lane outcomes, and post-merge
+    defect-escape cases.
 - [ ] 5.1.2. Validate fixture output against the JSON Schema contract.
   - Requires 5.1.1.
   - See mpsc-log-design.md §9 and mpsc-log-event-schema.json.

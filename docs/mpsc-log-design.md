@@ -166,24 +166,28 @@ The sidecar shape is defined by
 [mpsc-log-sidecar.example.toml](mpsc-log-sidecar.example.toml). Configuration
 has four tables:
 
-| Table        | Responsibility                                                                                 |
-| ------------ | ---------------------------------------------------------------------------------------------- |
-| `[rotation]` | `schedule`, `max_bytes`, plain generation count, compressed generation count, and gzip policy. |
-| `[locking]`  | Lock timeout and partial-tail repair mode.                                                     |
-| `[defaults]` | Default JSON fields inserted before CLI fields.                                                |
-| `[schema]`   | Object paths mapped to coercion names: `string`, `number`, `boolean`, `json`, or `null`.       |
+| Table        | Responsibility                                                                                      |
+| ------------ | --------------------------------------------------------------------------------------------------- |
+| `[rotation]` | `schedule`, `max_bytes`, plain generation count, compressed generation count, and gzip policy.      |
+| `[locking]`  | Lock timeout and partial-tail repair mode.                                                          |
+| `[defaults]` | Default JSON fields inserted before CLI fields.                                                     |
+| `[schema]`   | Object paths mapped to coercion names: `string`, `integer`, `number`, `boolean`, `json`, or `null`. |
 
-Merge order is deterministic:
+Merge and coercion order is deterministic:
 
-1. Start with sidecar `[defaults]`.
-2. Apply CLI fields in argument order.
-3. Insert generated `timestamp` if no field named `timestamp` exists.
-4. Serialize the resulting object.
+| Step | Rule                                                                                  | Winner                                                                                                                                      |
+| ---- | ------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1    | Start with sidecar `[defaults]` converted from TOML values to their JSON equivalents. | Sidecar defaults seed the record.                                                                                                           |
+| 2    | Process CLI fields in argument order and write each value to its object path.         | Each CLI field wins over sidecar defaults and over earlier CLI fields at the same path.                                                     |
+| 3    | Coerce each CLI value before writing it.                                              | Explicit `-s`, `-n`, and `-b` flags win for that word; otherwise the matching `[schema]` entry wins; otherwise default `jo` inference wins. |
+| 4    | Insert the generated invocation timestamp.                                            | The generated canonical UTC `timestamp` is added only when no `timestamp` field exists after defaults and CLI fields.                       |
+| 5    | Serialize the resulting object.                                                       | The merged record is written as one compact JSON object.                                                                                    |
 
-Explicit `-s`, `-n`, and `-b` flags override the sidecar schema for that word.
-When no flag or schema entry exists, default `jo` inference applies: valid JSON
-values parse as JSON, empty `key=` becomes `null`, and other values remain
-strings.
+The sidecar schema never overrides an explicit CLI coercion flag. Schema
+entries affect only values supplied for the matching object path; they do not
+change sidecar defaults or the generated timestamp. When default `jo` inference
+is used, valid JSON values parse as JSON, empty `key=` becomes `null`, and
+other values remain strings.
 
 ## 7. Journal write protocol
 
