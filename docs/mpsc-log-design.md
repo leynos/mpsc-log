@@ -8,6 +8,7 @@
   - [Context](context.md).
   - [Lock file naming ADR](adr-001-lock-file-naming.md).
   - [Testing strategy ADR](adr-002-testing-strategy.md).
+  - [`jo` field syntax ADR](adr-003-jo-field-syntax-and-duplicate-keys.md).
   - [Event schema](mpsc-log-event-schema.json).
   - [Sidecar example](mpsc-log-sidecar.example.toml).
   - [Users' guide](users-guide.md).
@@ -35,12 +36,14 @@ value per line, and `\n` line termination; it is also described as suitable for
 log files and cooperating processes.[^jsonl] `mpsc-log` tightens the JSON Lines
 contract by requiring every root value to be an object.
 
-The CLI field grammar follows `jo` where that serves object-record logging.
-`jo` supports `key=value`, `key@value`, type coercion flags, object paths,
-file-value prefixes, array construction, and duplicate object keys.[^jo]
-`mpsc-log` rejects array roots and serializes through `serde_json`, so
-duplicate keys resolve by last write rather than producing repeated JSON object
-names.
+The CLI field grammar is `jo`-inspired and uses selected `jo` field syntax
+where that serves object-record logging. `jo` supports `key=value`,
+`key@value`, type coercion flags, object paths, file-value prefixes, array
+construction, and duplicate object keys.[^jo] `mpsc-log` rejects array roots
+and serializes through `serde_json`, so duplicate paths resolve by last write
+rather than producing repeated textual JSON object names. That compatibility
+boundary is recorded in
+[ADR 003: `jo` field syntax and duplicate keys](adr-003-jo-field-syntax-and-duplicate-keys.md).
 
 The default `timestamp` field uses RFC 3339 UTC. RFC 3339 defines an Internet
 profile of ISO 8601 for timestamps, recommends UTC for interoperability, and
@@ -61,7 +64,7 @@ The Rust implementation baseline is conservative:
 
 | Need        | Choice                         | Reason                                                                                            |
 | ----------- | ------------------------------ | ------------------------------------------------------------------------------------------------- |
-| CLI parsing | `clap` builder API             | Handles help/version/error rendering while allowing raw `jo`-style field tails.[^clap]            |
+| CLI parsing | `clap` builder API             | Handles help/version/error rendering while allowing raw selected `jo` field tails.[^clap]         |
 | JSON        | `serde`, `serde_json`          | Standard Rust serialization stack; object maps naturally enforce last-wins duplicate handling.    |
 | TOML        | `toml` crate, TOML v1.0 subset | Current crate supports TOML parsing; the product contract remains v1.0.                           |
 | Time        | `jiff`                         | Provides `Timestamp::now()` and RFC 3339-style instant formatting with nanosecond support.[^jiff] |
@@ -82,7 +85,7 @@ atomic-output integration, dependency risk, and portability.[^gzp] [^gzippy]
 
 - Create missing parent directories for the journal path.
 - Parse the first argument as the journal path and remaining arguments as
-  `jo`-style field words and coercion flags.
+  selected `jo`-inspired field words and coercion flags.
 - Merge sidecar defaults, CLI fields, schema-guided coercions, and generated
   timestamp values into one JSON object.
 - Serialize exactly one compact JSON object plus `\n` per successful
@@ -163,7 +166,9 @@ The field tail accepts this subset:
 | `key[sub]=value` | Insert into an object at `key.sub`.                        |
 
 Unsupported `jo` options such as `-a`, `-p`, `-f`, `-D`, `-e`, `-v`, and `-V`
-fail with `EX_USAGE`. The root is always an object.
+fail with `EX_USAGE`. The root is always an object. The field syntax is
+`jo`-inspired rather than textually `jo` compatible: duplicate writes to the
+same object path use last-wins semantics inside the record map.
 
 ## 6. Sidecar configuration
 
@@ -187,19 +192,19 @@ has four tables:
 
 Merge and coercion order is deterministic:
 
-| Step | Rule                                                                                  | Winner                                                                                                                                      |
-| ---- | ------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1    | Start with sidecar `[defaults]` converted from TOML values to their JSON equivalents. | Sidecar defaults seed the record.                                                                                                           |
-| 2    | Process CLI fields in argument order and write each value to its object path.         | Each CLI field wins over sidecar defaults and over earlier CLI fields at the same path.                                                     |
-| 3    | Coerce each CLI value before writing it.                                              | Explicit `-s`, `-n`, and `-b` flags win for that word; otherwise the matching `[schema]` entry wins; otherwise default `jo` inference wins. |
-| 4    | Insert the generated invocation timestamp.                                            | The generated canonical UTC `timestamp` is added only when no `timestamp` field exists after defaults and CLI fields.                       |
-| 5    | Serialize the resulting object.                                                       | The merged record is written as one compact JSON object.                                                                                    |
+| Step | Rule                                                                                  | Winner                                                                                                                                               |
+| ---- | ------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1    | Start with sidecar `[defaults]` converted from TOML values to their JSON equivalents. | Sidecar defaults seed the record.                                                                                                                    |
+| 2    | Process CLI fields in argument order and write each value to its object path.         | Each CLI field wins over sidecar defaults and over earlier CLI fields at the same path.                                                              |
+| 3    | Coerce each CLI value before writing it.                                              | Explicit `-s`, `-n`, and `-b` flags win for that word; otherwise the matching `[schema]` entry wins; otherwise default `jo`-inspired inference wins. |
+| 4    | Insert the generated invocation timestamp.                                            | The generated canonical UTC `timestamp` is added only when no `timestamp` field exists after defaults and CLI fields.                                |
+| 5    | Serialize the resulting object.                                                       | The merged record is written as one compact JSON object.                                                                                             |
 
 The sidecar schema never overrides an explicit CLI coercion flag. Schema
 entries affect only values supplied for the matching object path; they do not
-change sidecar defaults or the generated timestamp. When default `jo` inference
-is used, valid JSON values parse as JSON, empty `key=` becomes `null`, and
-other values remain strings.
+change sidecar defaults or the generated timestamp. When default `jo`-inspired
+inference is used, valid JSON values parse as JSON, empty `key=` becomes
+`null`, and other values remain strings.
 
 ## 7. Journal write protocol
 
@@ -380,14 +385,14 @@ The implementation must satisfy these properties:
 | Rotation preserves successful records across active, plain rotated, scheduled rotated, and compressed rotated files. | End-to-end test that forces size and scheduled rotation under concurrent writers and counts decoded records. |
 | Detected write failures do not leave a partial final line.                                                           | Fault-injection adapter test that fails after partial writes and checks truncate repair.                     |
 | Crash-like partial tails are repaired before the next append.                                                        | Fixture with malformed trailing bytes followed by a successful append.                                       |
-| CLI coercion follows the accepted `jo` subset.                                                                       | Parameterized examples copied from the accepted `jo` behaviours.                                             |
+| CLI coercion follows the selected `jo` field syntax.                                                                 | Parameterized examples cover the accepted `jo`-inspired behaviours and last-wins duplicate paths.            |
 | Sidecar/CLI precedence is deterministic.                                                                             | Table-driven tests covering defaults, schema coercion, explicit flags, and `timestamp`.                      |
 
-The combination surface is `jo` syntax form × coercion source × object path ×
-sidecar default × rotation schedule × rotation state × lock contention. The
-test suite must cover pairwise combinations across those axes, plus targeted
-cases for size and scheduled rotation under contention and failed filesystem
-operations.
+The combination surface is selected `jo` syntax form × coercion source × object
+path × sidecar default × rotation schedule × rotation state × lock contention.
+The test suite must cover pairwise combinations across those axes, plus
+targeted cases for size and scheduled rotation under contention and failed
+filesystem operations.
 
 Network filesystems remain outside the correctness claim until a separate
 platform verification matrix proves lock and rename behaviour for a named
@@ -400,7 +405,7 @@ the implementation:
 
 | Module    | Responsibility                                                                 |
 | --------- | ------------------------------------------------------------------------------ |
-| `args`    | Parse the journal path and raw `jo` field tail.                                |
+| `args`    | Parse the journal path and raw selected `jo` field tail.                       |
 | `fields`  | Parse field words, object paths, coercion flags, and file-value forms.         |
 | `config`  | Load and validate sidecar TOML.                                                |
 | `record`  | Merge defaults, CLI fields, schema coercions, and generated timestamp.         |
@@ -415,7 +420,6 @@ item explicitly commits to a supported API.
 
 ## 13. Deferred ADRs
 
-- Accepted `jo` subset and last-wins duplicate-key handling.
 - Rotation naming, compression, and retention defaults.
 - CLI-only product boundary versus public Rust library API.
 

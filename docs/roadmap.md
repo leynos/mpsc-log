@@ -13,6 +13,7 @@ The primary source documents are:
 - [context](context.md);
 - [ADR 001: Lock file naming](adr-001-lock-file-naming.md);
 - [ADR 002: Testing strategy](adr-002-testing-strategy.md);
+- [ADR 003: `jo` field syntax and duplicate keys](adr-003-jo-field-syntax-and-duplicate-keys.md);
 - [event schema](mpsc-log-event-schema.json);
 - [sidecar example](mpsc-log-sidecar.example.toml).
 
@@ -26,7 +27,7 @@ spine before feature work starts, later slices can converge on one small CLI
 instead of repeatedly reopening syntax, locking, and retention decisions.
 
 This phase resolves the decisions that affect every subsequent pull request:
-the accepted `jo` subset, public API boundary, filesystem support policy,
+the selected `jo` field syntax, public API boundary, filesystem support policy,
 rotation naming, and the repository shape needed to validate a CLI whose main
 risks are concurrency and persistence.
 
@@ -43,11 +44,13 @@ error handling, and future compatibility work. See mpsc-log-design.md §§3, 5,
   - Success: the ADR defines adjacent lock naming, `.lock` and self-sidecar
     journal rejection, sidecar sharing by stem, and the local-filesystem
     coordination boundary.
-- [ ] 1.1.2. Record the accepted `jo` subset and duplicate-key behaviour in
-  an ADR.
-  - See mpsc-log-design.md §§2, 5, 13 and terms-of-reference.md §§6, 9.
-  - Success: the ADR names supported forms, rejected options, object-root
-    enforcement, object-path handling, and last-wins duplicate-key semantics.
+- [x] 1.1.2. Record the selected `jo` field syntax and duplicate-key
+  behaviour in an ADR.
+  - See mpsc-log-design.md §§2, 5, 13, terms-of-reference.md §§6, 9, and
+    adr-003-jo-field-syntax-and-duplicate-keys.md.
+  - Success: the ADR names selected `jo`-inspired forms, rejected options,
+    object-root enforcement, object-path handling, and last-wins duplicate-key
+    semantics.
 - [ ] 1.1.3. Record the CLI-only v1 product boundary in an ADR.
   - See mpsc-log-design.md §§3, 10, 12-13 and terms-of-reference.md §§6, 9.
   - Success: the ADR states that `src/main.rs` owns process exit mapping and
@@ -98,9 +101,10 @@ same CLI, domain, filesystem, and test seams. See mpsc-log-design.md §§2, 4,
 
 ## 2. Day-one structured journal entries
 
-Idea: if one `mpsc-log` invocation can parse `jo`-style fields, apply sidecar
-defaults, emit an RFC 3339 UTC timestamp, and append one JSONL object, the tool
-already replaces the unsafe `jo >> file.jsonl` baseline for simple workflows.
+Idea: if one `mpsc-log` invocation can parse selected `jo`-inspired fields,
+apply sidecar defaults, emit an RFC 3339 UTC timestamp, and append one JSONL
+object, the tool already replaces the unsafe `jo >> file.jsonl` baseline for
+simple workflows.
 
 This phase delivers the narrowest useful end-to-end command. It intentionally
 starts without the full concurrency and rotation surface so that parser,
@@ -109,10 +113,10 @@ examples before the filesystem protocol grows more complex.
 
 ### 2.1. Prove the CLI field contract can build one object record
 
-This step answers whether the accepted `jo` subset can be implemented without
-breaking the object-root logging contract. It informs sidecar coercion, error
-classification, and the later combinatorial test matrix. See mpsc-log-design.md
-§§2, 5, 10-12 and terms-of-reference.md §§2, 6, 8.
+This step answers whether the selected `jo` field syntax can be implemented
+without breaking the object-root logging contract. It informs sidecar coercion,
+error classification, and the later combinatorial test matrix. See
+mpsc-log-design.md §§2, 5, 10-12 and terms-of-reference.md §§2, 6, 8.
 
 - [ ] 2.1.1. Implement positional argument parsing for the journal path and
   raw field tail.
@@ -120,14 +124,14 @@ classification, and the later combinatorial test matrix. See mpsc-log-design.md
   - See mpsc-log-design.md §§5, 10, 12.
   - Success: the parser preserves field words and coercion flags in order and
     rejects missing journal paths with `EX_USAGE`.
-- [ ] 2.1.2. Implement field-word parsing for the accepted `jo` object forms.
+- [ ] 2.1.2. Implement field-word parsing for the selected `jo` object forms.
   - Requires 2.1.1.
   - See mpsc-log-design.md §§2, 5 and terms-of-reference.md §§2, 6.
   - [ ] Cover `key=value`, `key@value`, object paths, array appends, and
     bracketed object insertion.
   - [ ] Reject unsupported `jo` options and any non-object root outcome.
-  - Success: representative `jo` examples produce typed intermediate values
-    or stable usage errors.
+  - Success: representative selected `jo`-inspired examples produce typed
+    intermediate values or stable usage errors.
 - [ ] 2.1.3. Implement explicit and inferred type coercion for CLI values.
   - Requires 2.1.2.
   - See mpsc-log-design.md §§5-6 and context.md.
@@ -161,8 +165,8 @@ external JSONL contract and df12-build event examples. See mpsc-log-design.md
     mpsc-log-event-schema.json.
   - Success: sidecar defaults seed the record; CLI fields win over defaults
     and earlier duplicate paths; CLI coercion uses explicit `-s`, `-n`, or
-    `-b` flags before schema entries and default `jo` inference; and the
-    generated `timestamp` is inserted only if no timestamp exists after
+    `-b` flags before schema entries and default `jo`-inspired inference; and
+    the generated `timestamp` is inserted only if no timestamp exists after
     defaults and CLI fields.
 - [ ] 2.2.3. Generate the default RFC 3339 UTC `timestamp` field.
   - Requires 1.2.3 and 2.2.2.
