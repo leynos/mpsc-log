@@ -11,9 +11,10 @@ The primary source documents are:
 - [terms of reference](terms-of-reference.md);
 - [technical design](mpsc-log-design.md);
 - [context](context.md);
+- [ADR 001: Lock file naming](adr-001-lock-file-naming.md);
+- [ADR 002: Testing strategy](adr-002-testing-strategy.md);
 - [event schema](mpsc-log-event-schema.json);
-- [sidecar example](mpsc-log-sidecar.example.toml); and
-- [ADR 001: Testing strategy](adr-001-testing-strategy.md).
+- [sidecar example](mpsc-log-sidecar.example.toml).
 
 No RFCs exist yet, so the first phase records the remaining decisions that
 would otherwise force rework.
@@ -36,20 +37,21 @@ explicitly leave out. Its outcome informs crate layout, user documentation,
 error handling, and future compatibility work. See mpsc-log-design.md §§3, 5,
 8, 12-13 and terms-of-reference.md §§6, 8-10.
 
-- [ ] 1.1.1. Record the accepted `jo` subset and duplicate-key behaviour in
+- [x] 1.1.1. Record lock-file naming and reserved suffixes in an ADR.
+  - See mpsc-log-design.md §§4, 6-7, 11, 13 and
+    adr-001-lock-file-naming.md.
+  - Success: the ADR defines adjacent lock naming, `.lock` and self-sidecar
+    journal rejection, sidecar sharing by stem, and the local-filesystem
+    coordination boundary.
+- [ ] 1.1.2. Record the accepted `jo` subset and duplicate-key behaviour in
   an ADR.
   - See mpsc-log-design.md §§2, 5, 13 and terms-of-reference.md §§6, 9.
   - Success: the ADR names supported forms, rejected options, object-root
     enforcement, object-path handling, and last-wins duplicate-key semantics.
-- [ ] 1.1.2. Record the CLI-only v1 product boundary in an ADR.
+- [ ] 1.1.3. Record the CLI-only v1 product boundary in an ADR.
   - See mpsc-log-design.md §§3, 10, 12-13 and terms-of-reference.md §§6, 9.
   - Success: the ADR states that `src/main.rs` owns process exit mapping and
     that library exports are internal until a later roadmap item changes that.
-- [ ] 1.1.3. Record the filesystem and locking support policy in an ADR.
-  - See mpsc-log-design.md §§2, 4, 7, 11, 13 and
-    terms-of-reference.md §§6-8.
-  - Success: the ADR defines the local-filesystem correctness claim, lock-file
-    naming, unsupported network-filesystem caveat, and timeout semantics.
 - [ ] 1.1.4. Record the rotation naming, compression, and retention policy in
   an ADR.
   - See mpsc-log-design.md §§3, 6, 8, 11, 13 and
@@ -88,7 +90,7 @@ same CLI, domain, filesystem, and test seams. See mpsc-log-design.md §§2, 4,
   - Requires 1.2.1 and 1.2.2.
   - See mpsc-log-design.md §§7, 10-12 and
     docs/reliable-testing-in-rust-via-dependency-injection.md. See
-    adr-001-testing-strategy.md.
+    adr-002-testing-strategy.md.
   - [ ] Provide injectable clock and filesystem adapter boundaries for record
     timestamps, fault injection, and deterministic rotation fixtures.
   - Success: failures such as partial writes, metadata errors, and fixed
@@ -268,7 +270,7 @@ terms-of-reference.md §§5, 7.
     decodable JSON object lines as successful child processes.
 - [ ] 3.3.2. Add pairwise CLI/configuration combination coverage.
   - Requires phase 2 and 3.3.1.
-  - See mpsc-log-design.md §11 and adr-001-testing-strategy.md.
+  - See mpsc-log-design.md §11 and adr-002-testing-strategy.md.
   - Success: the suite covers `jo` syntax form, coercion source, object path,
     sidecar default, rotation schedule, rotation state, and lock contention.
 
@@ -365,7 +367,7 @@ mpsc-log-design.md §11 and terms-of-reference.md §7.
 
 - [ ] 4.4.1. Build the concurrent rotation end-to-end suite.
   - Requires steps 4.1-4.3.
-  - See mpsc-log-design.md §11 and adr-001-testing-strategy.md.
+  - See mpsc-log-design.md §11 and adr-002-testing-strategy.md.
   - Success: forced size and scheduled rotations under concurrent writers
     preserve the decoded record count across active, plain, scheduled, and
     compressed files.
