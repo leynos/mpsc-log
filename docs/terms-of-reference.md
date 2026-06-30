@@ -32,19 +32,17 @@ continue. The tool must make the file-system coordination boring: safe file
 creation, file locking, write atomicity, timeout handling, and rotation belong
 inside the tool rather than being reimplemented by each caller.
 
-The first concrete use case is
-`../df12-build.worktrees/codex-annex/workflows/df12-build-odw.js`, a
-multi-agent Open Dynamic Workflows (ODW) workflow for advancing
-`docs/roadmap.md` through planning, design review, implementation, code review,
-expert review, integration, audit, and remediation. Agents in that workflow
-need to append journal events to a file in the workflow sidecar directory. The
-journal should capture enough real-run telemetry to replace architectural
-guesses with measured behaviour.
+The first concrete use case is a multi-agent Open Dynamic Workflows (ODW)
+workflow for advancing `docs/roadmap.md` through planning, design review,
+implementation, code review, expert review, integration, audit, and
+remediation. Agents in that workflow need to append journal events to a file in
+the workflow sidecar directory. The journal should capture enough real-run
+telemetry to replace architectural guesses with measured behaviour.
 
 This project is being defined before its design document. The existing
-repository is a generated Rust application scaffold, so this terms of reference
-treats the user brief and `Cargo.toml` package description as the authoritative
-product inputs.
+repository is a generated Rust application scaffold, so these terms of
+reference treat the user brief and `Cargo.toml` package description as the
+authoritative product inputs.
 
 ## 2. Domain
 
