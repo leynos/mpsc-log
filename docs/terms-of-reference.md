@@ -34,9 +34,9 @@ inside the tool rather than being reimplemented by each caller.
 
 The first concrete use case is a multi-agent Open Dynamic Workflows (ODW)
 workflow for advancing `docs/roadmap.md` through planning, design review,
-implementation, code review, expert review, integration, audit, and
-remediation. Agents in that workflow need to append journal events to a file in
-the workflow sidecar directory. The journal should capture enough real-run
+implementation, code review, expert review, integration, audit, and remediation
+phases. Agents in that workflow need to append journal events to a file in the
+workflow sidecar directory. The journal should capture enough real-run
 telemetry to replace architectural guesses with measured behaviour.
 
 This project is being defined before its design document. The existing

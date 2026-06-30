@@ -23,11 +23,10 @@ rewriting the same `jo`, `flock`, append, timeout, and rotation glue in every
 caller.
 
 The first integration target is the df12-build Open Dynamic Workflows (ODW)
-workflow at `../df12-build.worktrees/codex-annex/workflows/df12-build-odw.js`.
-Agents in that workflow will write journal records into a caller-owned workflow
-sidecar directory. The records measure phase timing, review rounds, task shape,
-CodeRabbit waits and HTTP 429s, audit yield, remediation lane outcomes, and
-post-merge defect escape.
+workflow. Agents in that workflow will write journal records into a
+caller-owned workflow sidecar directory. The records measure phase timing,
+review rounds, task shape, CodeRabbit waits and HTTP 429s, audit yield,
+remediation lane outcomes, and post-merge defect escape.
 
 ## 2. Research baseline
 
@@ -293,7 +292,7 @@ boundaries derived from the invocation timestamp:
 | -------- | --------------------------------------- | ------------------------- |
 | `hourly` | UTC hour beginning                      | `run.2026-06-29T14.jsonl` |
 | `daily`  | UTC day beginning                       | `run.2026-06-29.jsonl`    |
-| `weekly` | UTC ISO week beginning, Monday 00:00:00 | `run.2026-06-29.jsonl`    |
+| `weekly` | UTC ISO week beginning, Monday 00:00:00 | `run.2026-W27.jsonl`      |
 
 Scheduled rotation is opportunistic rather than daemon-driven. If no invocation
 occurs at the exact boundary, the next invocation rotates the previous active
