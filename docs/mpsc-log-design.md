@@ -305,19 +305,23 @@ The scheduled protocol is:
 1. Determine the pending record period from the invocation timestamp.
 2. Determine the active file period from the first complete record in the
    active log, falling back to the pending period when the active log is empty.
-3. If the active period is older than the pending record period, rotate the
-   active log into the active period's scheduled filename.
-4. If the active log plus the pending record would exceed `max_bytes`, rotate
-   the active log into the pending period's next size-split filename.
+3. If the active period is older than the pending record period, finalize the
+   previous period first by rotating the active log into the active period's
+   scheduled filename. The active path is then a fresh empty file for the
+   pending period.
+4. Evaluate `max_bytes` against the current active file after any
+   period-boundary rollover. If that active file plus the pending record would
+   exceed `max_bytes`, rotate it into the pending period's next size-split
+   filename and continue with a fresh active file.
 5. Append the pending record to the active log.
 
 Within a scheduled period, reaching `max_bytes` before the time boundary
 creates an interim size split. Size splits add a numeric suffix within that
-period: `run.2026-06-29.1.jsonl`, `run.2026-06-29.2.jsonl`, and so on. If a
-period has no size splits, its final scheduled archive uses the unsuffixed base
-name. If a period already has one or more size-split files, the final archive
-at the next time boundary also uses the next numeric suffix so that every file
-for that period has an ordered generation number.
+period: `run.<period>.1.jsonl`, `run.<period>.2.jsonl`, and so on. If a period
+has no size splits, its final scheduled archive uses the unsuffixed base name,
+such as `run.<period>.jsonl`. If a period already has one or more size-split
+files, the final archive at the next time boundary also uses the next numeric
+suffix so that every file for that period has an ordered generation number.
 
 Retention and compression are period-based in scheduled mode. The newest four
 completed periods remain plain, including all size-split files inside those
