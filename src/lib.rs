@@ -6,7 +6,7 @@
 /// # Examples
 ///
 /// ```
-/// use mpsc-log::greet;
+/// use mpsc_log::greet;
 ///
 /// assert_eq!(greet(), "Hello from mpsc-log!");
 /// ```
