@@ -254,11 +254,10 @@ project:
 
 - **Mandate caret requirements for all dependencies.** All crate versions
   specified in `Cargo.toml` must use SemVer-compatible caret requirements (e.g.,
-   `some-crate = "1.2.3"` (equivalent to `^1.2.3`). This is Cargo's default and
-   allows for safe,
-  non-breaking updates to minor and patch versions while preventing breaking
-  changes from new major versions. This approach is critical for ensuring build
-  stability and reproducibility.
+  `some-crate = "1.2.3"` (equivalent to `^1.2.3`). This is Cargo's default and
+  allows for safe, non-breaking updates to minor and patch versions while
+  preventing breaking changes from new major versions. This approach is
+  critical for ensuring build stability and reproducibility.
 - **Prohibit unstable version specifiers.** The use of wildcard (`*`) or
   open-ended inequality (`>=`) version requirements is strictly forbidden, as
   they introduce unacceptable risk and unpredictability. Tilde requirements (
@@ -292,7 +291,7 @@ project:
 
 - Use `tracing` for logging and diagnostics. Prefer structured
   `tracing::{trace, debug, info, warn, error}` events and spans over `println!`,
-   `eprintln!`, or direct `log` macros. Add fields for identifiers, state, and
+  `eprintln!`, or direct `log` macros. Add fields for identifiers, state, and
   error context so downstream subscribers can filter and correlate events
   without parsing message text.
 - Use `#[tracing::instrument]` or explicit spans around request handling,
@@ -314,7 +313,15 @@ project:
 
 ## Markdown guidance
 
-- Validate Markdown files using `make markdownlint`.
+- Validate Markdown files using `make markdownlint`. This target also enforces
+  en-GB-oxendict spelling with pinned `typos`.
+- The spelling configuration `typos.toml` is generated. Edit
+  `typos.local.toml` for narrow repository terminology, then regenerate it with
+  `uv run scripts/generate_typos_config.py`; never edit generated entries by
+  hand.
+- Quoted APIs and identifiers retain upstream spelling. Put them in backticks
+  or fenced code blocks, which the spelling gate ignores, rather than adding
+  word-level exceptions.
 - Run `make fmt` after any documentation changes to format all Markdown
   files and fix table markup.
 - Validate Mermaid diagrams in Markdown files by running `make nixie`.
