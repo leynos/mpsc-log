@@ -7,12 +7,15 @@ stems = []
 
 [words]
 # Official names: Azure Architecture Center and GitHub Flavored Markdown.
-accepted = ["Center", "Flavored"]
+accepted = []
 
 [words.corrections]
 
 [patterns]
-ignore = []
+ignore = [
+    "\\bAzure Architecture\\s+Center \\| Microsoft Learn\\b",
+    "\\bGitHub Flavored\\s+Markdown\\b",
+]
 
 [files]
 exclude = []

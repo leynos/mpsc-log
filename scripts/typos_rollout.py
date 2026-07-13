@@ -1,190 +1,58 @@
-"""Refresh and render shared en-GB-oxendict ``typos`` configuration."""
+"""Refresh cached shared en-GB-oxendict dictionary policy.
+
+The module coordinates local and HTTPS authorities, validator metadata,
+connectivity-only stale fallback, and atomic persistence before delegating pure
+dictionary validation and rendering to :mod:`typos_rollout_dictionary`.
+"""
 
 from __future__ import annotations
 
-import dataclasses as dc
 import email.utils
 import json
 import pathlib
 import tomllib
 import typing as typ
 import urllib.error
-import urllib.parse
-import urllib.request
 
 import typos_rollout_cache
+import typos_rollout_dictionary
 
 if typ.TYPE_CHECKING:
     import collections.abc as cabc
 
 RefreshResult = typos_rollout_cache.RefreshResult
+NetworkUnavailableError = typos_rollout_cache.NetworkUnavailableError
+InsecureSourceError = typos_rollout_cache.InsecureSourceError
 _CacheTargets = typos_rollout_cache.CacheTargets
 _RemoteResponse = typos_rollout_cache.RemoteResponse
 _atomic_write = typos_rollout_cache.atomic_write
-
-SCHEMA_VERSION = 1
 HTTP_NOT_MODIFIED = 304
-SUFFIX_PAIRS = (
-    ("ise", "ize"),
-    ("ises", "izes"),
-    ("ised", "ized"),
-    ("ising", "izing"),
-    ("iser", "izer"),
-    ("isers", "izers"),
-    ("isable", "izable"),
-    ("isation", "ization"),
-    ("isations", "izations"),
-)
 
-
-@dc.dataclass(frozen=True)
-class Dictionary:
-    """Curated words and exclusions used to generate a ``typos`` config."""
-
-    stems: tuple[str, ...] = ()
-    accepted: tuple[str, ...] = ()
-    corrections: tuple[tuple[str, str], ...] = ()
-    ignore_patterns: tuple[str, ...] = ()
-    excluded_files: tuple[str, ...] = ()
-
-
-def _string_list(table: cabc.Mapping[str, object], key: str) -> tuple[str, ...]:
-    """Read and validate a list of strings from a TOML table."""
-    value = table.get(key, [])
-    if not isinstance(value, list) or not all(isinstance(item, str) for item in value):
-        message = f"{key!r} must be a list of strings"
-        raise TypeError(message)
-    return tuple(sorted(set(value)))
-
-
-def _table(document: cabc.Mapping[str, object], key: str) -> cabc.Mapping[str, object]:
-    """Read and validate a TOML table."""
-    value = document.get(key, {})
-    if not isinstance(value, dict):
-        message = f"{key!r} must be a table"
-        raise TypeError(message)
-    return typ.cast("cabc.Mapping[str, object]", value)
-
-
-def _dictionary_from_text(text: str) -> Dictionary:
-    """Parse and validate shared dictionary text."""
-    document = tomllib.loads(text)
-    schema = document.get("schema")
-    if schema != SCHEMA_VERSION:
-        message = f"unsupported dictionary schema {schema!r}"
-        raise ValueError(message)
-    oxford = _table(document, "oxford")
-    words = _table(document, "words")
-    patterns = _table(document, "patterns")
-    files = _table(document, "files")
-    corrections_table = _table(words, "corrections")
-    if not all(
-        isinstance(key, str) and isinstance(value, str)
-        for key, value in corrections_table.items()
-    ):
-        message = "word corrections must map strings to strings"
-        raise TypeError(message)
-    corrections = typ.cast("cabc.Mapping[str, str]", corrections_table)
-    return Dictionary(
-        stems=_string_list(oxford, "stems"),
-        accepted=_string_list(words, "accepted"),
-        corrections=tuple(sorted(corrections.items())),
-        ignore_patterns=_string_list(patterns, "ignore"),
-        excluded_files=_string_list(files, "exclude"),
-    )
-
-
-def load_dictionary(path: pathlib.Path) -> Dictionary:
-    """Load a validated shared dictionary from *path*."""
-    return _dictionary_from_text(path.read_text(encoding="utf-8"))
-
-
-def merge_dictionaries(base: Dictionary, local: Dictionary) -> Dictionary:
-    """Merge a shared dictionary with a non-conflicting local overlay."""
-    corrections = dict(base.corrections)
-    for word, correction in local.corrections:
-        existing = corrections.get(word)
-        if existing is not None and existing != correction:
-            message = (
-                f"conflicting correction for {word!r}: {existing!r} != {correction!r}"
-            )
-            raise ValueError(message)
-        corrections[word] = correction
-    return Dictionary(
-        stems=tuple(sorted(set(base.stems) | set(local.stems))),
-        accepted=tuple(sorted(set(base.accepted) | set(local.accepted))),
-        corrections=tuple(sorted(corrections.items())),
-        ignore_patterns=tuple(
-            sorted(set(base.ignore_patterns) | set(local.ignore_patterns))
-        ),
-        excluded_files=tuple(
-            sorted(set(base.excluded_files) | set(local.excluded_files))
-        ),
-    )
-
-
-def generate_word_mappings(dictionary: Dictionary) -> dict[str, str]:
-    """Expand Oxford stems and explicit words into deterministic mappings."""
-    mappings = {word: word for word in dictionary.accepted}
-
-    def add(word: str, correction: str) -> None:
-        existing = mappings.get(word)
-        if existing is not None and existing != correction:
-            message = (
-                f"conflicting generated correction for {word!r}: "
-                f"{existing!r} != {correction!r}"
-            )
-            raise ValueError(message)
-        mappings[word] = correction
-
-    for word, correction in dictionary.corrections:
-        add(word, correction)
-    for stem in dictionary.stems:
-        for plain_british, oxford in SUFFIX_PAIRS:
-            add(f"{stem}{plain_british}", f"{stem}{oxford}")
-            add(f"{stem}{oxford}", f"{stem}{oxford}")
-    return dict(sorted(mappings.items()))
-
-
-def _toml_string(value: str) -> str:
-    """Render a string using TOML-compatible JSON quoting."""
-    return json.dumps(value, ensure_ascii=False)
-
-
-def _render_array(name: str, values: tuple[str, ...]) -> list[str]:
-    """Render a deterministic TOML string array."""
-    lines = [f"{name} = ["]
-    lines.extend(f"    {_toml_string(value)}," for value in values)
-    lines.append("]")
-    return lines
-
-
-def render_typos_config(dictionary: Dictionary) -> str:
-    """Render a deterministic, parse-checked ``typos.toml`` document."""
-    lines = [
-        "# Generated from the shared en-GB-oxendict dictionary.",
-        "# Regenerate with scripts/generate_typos_config.py; do not edit by hand.",
-        "",
-        "[files]",
-        *_render_array("extend-exclude", dictionary.excluded_files),
-        "",
-        "[default]",
-        'locale = "en-gb"',
-        *_render_array("extend-ignore-re", dictionary.ignore_patterns),
-        "",
-        "[default.extend-words]",
-    ]
-    lines.extend(
-        f"{_toml_string(word)} = {_toml_string(correction)}"
-        for word, correction in generate_word_mappings(dictionary).items()
-    )
-    rendered = "\n".join(lines) + "\n"
-    tomllib.loads(rendered)
-    return rendered
+Dictionary = typos_rollout_dictionary.Dictionary
+SUFFIX_PAIRS = typos_rollout_dictionary.SUFFIX_PAIRS
+_dictionary_from_text = typos_rollout_dictionary._dictionary_from_text
+load_dictionary = typos_rollout_dictionary.load_dictionary
+merge_dictionaries = typos_rollout_dictionary.merge_dictionaries
+generate_word_mappings = typos_rollout_dictionary.generate_word_mappings
+render_typos_config = typos_rollout_dictionary.render_typos_config
 
 
 def write_config(path: pathlib.Path, dictionary: Dictionary) -> None:
-    """Atomically write validated generated configuration to *path*."""
+    """Atomically write validated generated configuration.
+
+    Parameters
+    ----------
+    path
+        Destination for the generated ``typos`` configuration.
+    dictionary
+        Validated policy to render and persist.
+
+    Examples
+    --------
+    Write a minimal generated configuration::
+
+        write_config(pathlib.Path("typos.toml"), Dictionary(stems=("organ",)))
+    """
     _atomic_write(path, render_typos_config(dictionary).encode())
 
 
@@ -226,8 +94,9 @@ def _remote_is_not_newer(
 ) -> bool:
     """Return whether HTTP validators prove the response is not newer."""
     etag = headers.get("ETag")
-    if etag is not None and etag == saved.get("etag"):
-        return True
+    saved_etag = saved.get("etag")
+    if isinstance(etag, str) and isinstance(saved_etag, str):
+        return etag == saved_etag
     modified = headers.get("Last-Modified")
     saved_modified = saved.get("last_modified")
     if not isinstance(modified, str) or not isinstance(saved_modified, str):
@@ -293,32 +162,25 @@ def _conditional_headers(saved: cabc.Mapping[str, object]) -> dict[str, str]:
     return headers
 
 
-def _https_request(
-    source: str,
-    headers: cabc.Mapping[str, str],
-) -> urllib.request.Request:
-    """Build a request after constraining the shared source to HTTPS."""
-    if urllib.parse.urlsplit(source).scheme != "https":
-        message = f"shared dictionary URL must use HTTPS: {source}"
-        raise ValueError(message)
-    return urllib.request.Request(source, headers=dict(headers))  # noqa: S310 - HTTPS is required above.
-
-
 def _write_remote_cache(
     source: str,
     targets: _CacheTargets,
-    content: bytes,
-    headers: cabc.Mapping[str, str],
+    response: _RemoteResponse,
 ) -> RefreshResult:
     """Validate and atomically persist an HTTP dictionary response."""
+    try:
+        content = response.read()
+    except urllib.error.URLError as error:
+        message = f"shared dictionary authority is unavailable: {source}"
+        raise NetworkUnavailableError(message) from error
     _dictionary_from_text(content.decode())
     _atomic_write(targets.cache, content)
     _write_metadata(
         targets.metadata,
         {
             "source": source,
-            "etag": headers.get("ETag"),
-            "last_modified": headers.get("Last-Modified"),
+            "etag": response.headers.get("ETag"),
+            "last_modified": response.headers.get("Last-Modified"),
         },
     )
     return RefreshResult("refreshed", targets.cache)
@@ -331,16 +193,14 @@ def _remote_response_result(
     response: _RemoteResponse,
 ) -> RefreshResult:
     """Return the cache result for a successful HTTP response."""
-    if response.status == HTTP_NOT_MODIFIED and _valid_cache(targets.cache):
-        return RefreshResult("current", targets.cache)
     if _valid_cache(targets.cache) and _remote_is_not_newer(saved, response.headers):
         return RefreshResult("current", targets.cache)
-    return _write_remote_cache(source, targets, response.read(), response.headers)
+    return _write_remote_cache(source, targets, response)
 
 
 def _stale_cache_or_raise(
     cache: pathlib.Path,
-    error: OSError | urllib.error.URLError,
+    error: NetworkUnavailableError,
 ) -> RefreshResult:
     """Return a valid stale cache or propagate the download failure."""
     if _valid_cache(cache):
@@ -355,31 +215,35 @@ def _http_error_result(
     """Translate an HTTP failure into the available cache result."""
     if error.code == HTTP_NOT_MODIFIED and _valid_cache(cache):
         return RefreshResult("current", cache)
-    return _stale_cache_or_raise(cache, error)
+    raise error
 
 
 def _refresh_http(
     source: str,
     cache: pathlib.Path,
     metadata: pathlib.Path,
+    opener: cabc.Callable[..., _RemoteResponse] | None,
 ) -> RefreshResult:
     """Refresh a cache from a validated HTTPS source with stale fallback."""
     saved = _read_metadata(metadata)
     if saved.get("source") != source:
         saved = {}
-    request = _https_request(source, _conditional_headers(saved))
+    request = typos_rollout_cache.https_request(source, _conditional_headers(saved))
+    open_remote = typos_rollout_cache.HTTPS_OPENER.open if opener is None else opener
     try:
-        with urllib.request.urlopen(  # noqa: S310 - _https_request rejects non-HTTPS URLs.
-            request,
-            timeout=30.0,
-        ) as response:
+        response_context = open_remote(request, timeout=30.0)
+    except urllib.error.HTTPError as error:
+        return _http_error_result(cache, error)
+    except urllib.error.URLError:
+        message = f"shared dictionary authority is unavailable: {source}"
+        return _stale_cache_or_raise(cache, NetworkUnavailableError(message))
+    with response_context as response:
+        try:
             return _remote_response_result(
                 source, _CacheTargets(cache, metadata), saved, response
             )
-    except urllib.error.HTTPError as error:
-        return _http_error_result(cache, error)
-    except (OSError, urllib.error.URLError) as error:
-        return _stale_cache_or_raise(cache, error)
+        except NetworkUnavailableError as error:
+            return _stale_cache_or_raise(cache, error)
 
 
 def refresh_base(
@@ -388,8 +252,38 @@ def refresh_base(
     *,
     metadata: pathlib.Path,
     offline: bool = False,
+    opener: cabc.Callable[..., _RemoteResponse] | None = None,
 ) -> RefreshResult:
-    """Refresh an untracked base cache when the authoritative copy is newer."""
+    """Refresh an untracked base cache when the authority is newer.
+
+    Parameters
+    ----------
+    source
+        Local path or HTTPS URL for the shared authority.
+    cache
+        Untracked destination for validated shared policy.
+    metadata
+        Sidecar recording source identity and freshness validators.
+    offline
+        Reuse only a valid local cache when true.
+    opener
+        Optional injectable HTTPS boundary for tests.
+
+    Returns
+    -------
+    RefreshResult
+        Cache path and stable refresh outcome.
+
+    Examples
+    --------
+    Refresh from a checked-out shared policy::
+
+        refresh_base(
+            pathlib.Path("shared.toml"),
+            pathlib.Path(".typos-base.toml"),
+            metadata=pathlib.Path(".typos-base.json"),
+        )
+    """
     if offline:
         if not _valid_cache(cache):
             message = f"no cached shared dictionary at {cache}"
@@ -397,4 +291,4 @@ def refresh_base(
         return RefreshResult("offline-cache", cache)
     if isinstance(source, pathlib.Path) or "://" not in str(source):
         return _refresh_local(pathlib.Path(source), cache, metadata)
-    return _refresh_http(str(source), cache, metadata)
+    return _refresh_http(str(source), cache, metadata, opener)

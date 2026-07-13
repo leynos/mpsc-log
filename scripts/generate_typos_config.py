@@ -12,7 +12,6 @@ repository-specific policy that must not weaken the estate-wide base.
 """
 
 import tomllib
-import urllib.error
 import urllib.parse
 from pathlib import Path
 
@@ -26,7 +25,24 @@ REPOSITORY_ROOT = Path(__file__).resolve().parent.parent
 
 
 def dictionary_from_cache(repository: Path = REPOSITORY_ROOT) -> rollout.Dictionary:
-    """Load the cached shared base merged with local repository policy."""
+    """Load the cached shared base merged with local repository policy.
+
+    Parameters
+    ----------
+    repository
+        Repository containing the cache and optional local overlay.
+
+    Returns
+    -------
+    rollout.Dictionary
+        Merged shared and repository-local policy.
+
+    Examples
+    --------
+    Load policy from the current repository::
+
+        dictionary = dictionary_from_cache()
+    """
     dictionary = rollout.load_dictionary(repository / ".typos-oxendict-base.toml")
     local_overlay = repository / "typos.local.toml"
     if local_overlay.exists():
@@ -38,7 +54,24 @@ def dictionary_from_cache(repository: Path = REPOSITORY_ROOT) -> rollout.Diction
 
 
 def render_config(repository: Path = REPOSITORY_ROOT) -> str:
-    """Render deterministic configuration from the populated local cache."""
+    """Render deterministic configuration from the populated local cache.
+
+    Parameters
+    ----------
+    repository
+        Repository containing the cache and optional local overlay.
+
+    Returns
+    -------
+    str
+        Complete deterministic ``typos`` configuration.
+
+    Examples
+    --------
+    Render the repository policy without writing it::
+
+        configuration = render_config()
+    """
     return rollout.render_typos_config(dictionary_from_cache(repository))
 
 
@@ -63,7 +96,30 @@ def main(
     source: str | Path = DEFAULT_BASE_URL,
     offline: bool = False,
 ) -> rollout.RefreshResult:
-    """Refresh the shared base cache and write the merged configuration."""
+    """Refresh the shared base cache and write the merged configuration.
+
+    Parameters
+    ----------
+    output
+        Optional generated-config destination.
+    repository
+        Repository containing cache and local policy paths.
+    source
+        Local or HTTPS shared dictionary authority.
+    offline
+        Reuse only a valid local cache when true.
+
+    Returns
+    -------
+    rollout.RefreshResult
+        Stable refresh status and cache path.
+
+    Examples
+    --------
+    Generate from a local authority::
+
+        main(source=Path("shared.toml"))
+    """
     destination = output if output is not None else repository / "typos.toml"
     try:
         result = rollout.refresh_base(
@@ -72,7 +128,7 @@ def main(
             metadata=repository / ".typos-oxendict-base.json",
             offline=offline,
         )
-    except (OSError, urllib.error.URLError):
+    except rollout.NetworkUnavailableError:
         fallback = _tracked_remote_fallback(source, destination)
         if fallback is not None:
             return fallback

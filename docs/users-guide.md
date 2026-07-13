@@ -29,7 +29,9 @@ The generated `Makefile` exposes these public targets:
 - `make coverage` writes `lcov.info` using `cargo llvm-cov` and `lld`.
 - `make audit` derives the Rust workspace root with `cargo metadata` and runs
   `cargo audit` once from that root.
-- `make markdownlint` checks Markdown files.
+- `make spelling` refreshes the shared en-GB-oxendict policy, merges the narrow
+  repository overlay, and checks Markdown prose.
+- `make markdownlint` checks Markdown files and depends on the spelling gate.
 - `make nixie` validates Mermaid diagrams.
 
 Install `clang`, `lld`, `mold`, `python3`, and `cargo-audit` before running the

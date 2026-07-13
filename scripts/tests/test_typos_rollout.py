@@ -3,8 +3,6 @@
 from __future__ import annotations
 
 import ast
-import email.message
-import importlib
 import json
 import os
 import tomllib
@@ -30,19 +28,9 @@ def test_rollout_integration_contract() -> None:
             feature_version=(3, 13),
         )
     makefile = SCRIPT_DIRECTORY.parent.joinpath("Makefile").read_text(encoding="utf-8")
-    assert "git ls-files --error-unmatch typos.toml >/dev/null" in makefile
-
-
-@pytest.fixture(name="rollout_modules")
-def rollout_modules_fixture(
-    monkeypatch: pytest.MonkeyPatch,
-) -> tuple[types.ModuleType, types.ModuleType, types.ModuleType]:
-    """Import the scripts through the same top-level module path used at runtime."""
-    monkeypatch.syspath_prepend(str(SCRIPT_DIRECTORY))
-    names = ("typos_rollout_cache", "typos_rollout", "generate_typos_config")
-    importlib.invalidate_caches()
-    cache, rollout, generator = (importlib.import_module(name) for name in names)
-    return cache, rollout, generator
+    assert "git ls-files --error-unmatch typos.toml >/dev/null" in makefile, (
+        "the spelling gate must require generated config to be tracked"
+    )
 
 
 def _dictionary_text(stem: str = "organ") -> str:
@@ -63,8 +51,9 @@ def test_rollout_generates_oxford_corrections(
 
     mappings = rollout.generate_word_mappings(rollout.Dictionary(stems=("organ",)))
 
-    assert mappings["organize"] == "organize"
-    assert mappings["organise"] == "organize"
+    assert mappings["organize"] == "organize", "Oxford spelling must be accepted"
+    assert mappings["organise"] == "organize", "plain British spelling must correct"
+    assert mappings["organisably"] == "organizably", "-isably must correct to -izably"
 
 
 def test_local_refresh_keeps_a_newer_cache(
@@ -87,8 +76,10 @@ def test_local_refresh_keeps_a_newer_cache(
 
     result = rollout.refresh_base(source, cache, metadata=metadata)
 
-    assert result.status == "current"
-    assert rollout.load_dictionary(cache).stems == ("newer",)
+    assert result.status == "current", "older authority must preserve the cache"
+    assert rollout.load_dictionary(cache).stems == ("newer",), (
+        "newer cached policy must remain installed"
+    )
 
 
 def test_https_failure_reuses_valid_tracked_config(
@@ -103,36 +94,39 @@ def test_https_failure_reuses_valid_tracked_config(
 
     def unavailable(*_args: object, **_kwargs: object) -> None:
         """Model an unavailable HTTPS authority."""
-        raise urllib.error.URLError("offline")
+        raise rollout.NetworkUnavailableError("offline")
 
     monkeypatch.setattr(rollout, "refresh_base", unavailable)
 
     result = generator.main(repository=tmp_path, source="https://example.invalid/base")
 
-    assert result.status == "tracked-config"
-    assert result.cache == tracked_config
+    assert result.status == "tracked-config", "connectivity failure permits fallback"
+    assert result.cache == tracked_config, "fallback must identify reviewed config"
 
 
-def test_dictionary_validation_rejects_invalid_documents(
-    rollout_modules: tuple[types.ModuleType, types.ModuleType, types.ModuleType],
-    tmp_path: Path,
-) -> None:
-    """Schema, table, string-list and correction types remain validated."""
-    _, rollout, _ = rollout_modules
-    source = tmp_path / "base.toml"
-    invalid_documents = (
+@pytest.mark.parametrize(
+    "document",
+    [
         _dictionary_text().replace("schema = 1", "schema = 2"),
         _dictionary_text().replace('[oxford]\nstems = ["organ"]', 'oxford = "bad"'),
         _dictionary_text().replace('stems = ["organ"]', "stems = [1]"),
         _dictionary_text().replace(
             "[words.corrections]", "[words.corrections]\nteh = 1"
         ),
-    )
-
-    for document in invalid_documents:
-        source.write_text(document, encoding="utf-8")
-        with pytest.raises((TypeError, ValueError)):
-            rollout.load_dictionary(source)
+    ],
+    ids=("schema", "table", "string-list", "correction"),
+)
+def test_dictionary_validation_rejects_invalid_documents(
+    rollout_modules: tuple[types.ModuleType, types.ModuleType, types.ModuleType],
+    tmp_path: Path,
+    document: str,
+) -> None:
+    """Schema, table, string-list and correction types remain validated."""
+    _, rollout, _ = rollout_modules
+    source = tmp_path / "base.toml"
+    source.write_text(document, encoding="utf-8")
+    with pytest.raises((TypeError, ValueError)):
+        rollout.load_dictionary(source)
 
 
 def test_merge_rejects_conflicting_corrections(
@@ -164,10 +158,14 @@ def test_render_and_write_are_deterministic_valid_toml(
     first = rollout.render_typos_config(dictionary)
     rollout.write_config(output, dictionary)
 
-    assert first == rollout.render_typos_config(dictionary)
-    assert output.read_text(encoding="utf-8") == first
-    assert tomllib.loads(first)["default"]["locale"] == "en-gb"
-    assert list(output.parent.glob(".typos.toml.*")) == []
+    assert first == rollout.render_typos_config(dictionary), "rendering must be stable"
+    assert output.read_text(encoding="utf-8") == first, "write must install rendering"
+    assert tomllib.loads(first)["default"]["locale"] == "en-gb", (
+        "generated locale must remain en-gb"
+    )
+    assert list(output.parent.glob(".typos.toml.*")) == [], (
+        "atomic writes must not leave temporary files"
+    )
 
 
 def test_offline_refresh_requires_and_reuses_valid_cache(
@@ -189,7 +187,7 @@ def test_offline_refresh_requires_and_reuses_valid_cache(
         "https://example.invalid/base", cache, metadata=metadata, offline=True
     )
 
-    assert result.status == "offline-cache"
+    assert result.status == "offline-cache", "offline mode must report cache reuse"
 
 
 def test_local_refresh_switches_authority_and_records_metadata(
@@ -210,16 +208,17 @@ def test_local_refresh_switches_authority_and_records_metadata(
 
     result = rollout.refresh_base(second, cache, metadata=metadata)
 
-    assert result.status == "refreshed"
-    assert rollout.load_dictionary(cache).stems == ("second",)
+    assert result.status == "refreshed", "new authority must replace the cache"
+    assert rollout.load_dictionary(cache).stems == ("second",), (
+        "replacement authority must supply policy"
+    )
     assert json.loads(metadata.read_text(encoding="utf-8"))["source"] == str(
         second.resolve()
-    )
+    ), "metadata must record replacement authority"
 
 
 def test_http_refresh_uses_validators_and_preserves_newer_cache(
     rollout_modules: tuple[types.ModuleType, types.ModuleType, types.ModuleType],
-    monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
     """Remote refresh uses validators only with the source that supplied them."""
@@ -250,33 +249,39 @@ def test_http_refresh_uses_validators_and_preserves_newer_cache(
 
     def open_response(request: urllib.request.Request, *, timeout: float) -> Response:
         """Capture the request passed to the network boundary."""
-        assert timeout == pytest.approx(30.0)
+        assert timeout == pytest.approx(30.0), "HTTP timeout must remain bounded"
         requests.append(request)
         return Response()
 
-    monkeypatch.setattr(rollout.urllib.request, "urlopen", open_response)
-
     first = rollout.refresh_base(
-        "https://example.test/base.toml", cache, metadata=metadata
+        "https://example.test/base.toml", cache, metadata=metadata, opener=open_response
     )
     second = rollout.refresh_base(
-        "https://example.test/base.toml", cache, metadata=metadata
+        "https://example.test/base.toml", cache, metadata=metadata, opener=open_response
     )
     replacement = rollout.refresh_base(
-        "https://example.test/replacement.toml", cache, metadata=metadata
+        "https://example.test/replacement.toml",
+        cache,
+        metadata=metadata,
+        opener=open_response,
     )
 
-    assert first.status == "refreshed"
-    assert second.status == "current"
-    assert requests[1].get_header("If-none-match") == '"estate-v1"'
-    assert replacement.status == "refreshed"
-    assert requests[2].get_header("If-none-match") is None
-    assert requests[2].get_header("If-modified-since") is None
+    assert first.status == "refreshed", "first response must populate the cache"
+    assert second.status == "current", "matching ETag must preserve the cache"
+    assert requests[1].get_header("If-none-match") == '"estate-v1"', (
+        "subsequent requests must send the saved ETag"
+    )
+    assert replacement.status == "refreshed", "new authority must be downloaded"
+    assert requests[2].get_header("If-none-match") is None, (
+        "validators must not cross authority boundaries"
+    )
+    assert requests[2].get_header("If-modified-since") is None, (
+        "dates must not cross authority boundaries"
+    )
 
 
 def test_remote_failure_reuses_only_a_valid_stale_cache(
     rollout_modules: tuple[types.ModuleType, types.ModuleType, types.ModuleType],
-    monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
     """Network failure keeps validated data and propagates without it."""
@@ -289,20 +294,21 @@ def test_remote_failure_reuses_only_a_valid_stale_cache(
         message = "offline"
         raise urllib.error.URLError(message)
 
-    monkeypatch.setattr(rollout.urllib.request, "urlopen", fail)
-
-    with pytest.raises(urllib.error.URLError):
-        rollout.refresh_base("https://example.test/base", cache, metadata=metadata)
+    with pytest.raises(rollout.NetworkUnavailableError):
+        rollout.refresh_base(
+            "https://example.test/base", cache, metadata=metadata, opener=fail
+        )
 
     cache.write_text(_dictionary_text(), encoding="utf-8")
-    result = rollout.refresh_base("https://example.test/base", cache, metadata=metadata)
+    result = rollout.refresh_base(
+        "https://example.test/base", cache, metadata=metadata, opener=fail
+    )
 
-    assert result.status == "stale-cache"
+    assert result.status == "stale-cache", "connectivity failure may reuse valid data"
 
 
 def test_remote_refresh_rejects_insecure_and_invalid_content(
     rollout_modules: tuple[types.ModuleType, types.ModuleType, types.ModuleType],
-    monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
     """The remote boundary requires HTTPS and validates bytes before install."""
@@ -330,13 +336,14 @@ def test_remote_refresh_rejects_insecure_and_invalid_content(
         def __exit__(self, *_args: object) -> None:
             """Leave the fake response context."""
 
-    monkeypatch.setattr(
-        rollout.urllib.request, "urlopen", lambda *_args, **_kwargs: InvalidResponse()
-    )
-
     with pytest.raises(tomllib.TOMLDecodeError):
-        rollout.refresh_base("https://example.test/base", cache, metadata=metadata)
-    assert not cache.exists()
+        rollout.refresh_base(
+            "https://example.test/base",
+            cache,
+            metadata=metadata,
+            opener=lambda *_args, **_kwargs: InvalidResponse(),
+        )
+    assert not cache.exists(), "invalid remote content must not be installed"
 
 
 def test_metadata_reader_handles_invalid_and_non_object_json(
@@ -348,45 +355,6 @@ def test_metadata_reader_handles_invalid_and_non_object_json(
     metadata = tmp_path / "cache.json"
 
     metadata.write_text("not-json", encoding="utf-8")
-    assert rollout._read_metadata(metadata) == {}
+    assert rollout._read_metadata(metadata) == {}, "invalid JSON must be ignored"
     metadata.write_text("[]", encoding="utf-8")
-    assert rollout._read_metadata(metadata) == {}
-
-
-def test_http_error_translation_handles_not_modified_and_stale_cache(
-    rollout_modules: tuple[types.ModuleType, types.ModuleType, types.ModuleType],
-    tmp_path: Path,
-) -> None:
-    """HTTP status handling distinguishes current, stale and absent data."""
-    _, rollout, _ = rollout_modules
-    cache = tmp_path / "cache.toml"
-    cache.write_text(_dictionary_text(), encoding="utf-8")
-    headers = email.message.Message()
-    not_modified = urllib.error.HTTPError(
-        "https://example.test/base", 304, "not modified", headers, None
-    )
-    unavailable = urllib.error.HTTPError(
-        "https://example.test/base", 503, "unavailable", headers, None
-    )
-
-    assert rollout._http_error_result(cache, not_modified).status == "current"
-    assert rollout._http_error_result(cache, unavailable).status == "stale-cache"
-    cache.unlink()
-    with pytest.raises(urllib.error.HTTPError):
-        rollout._http_error_result(cache, unavailable)
-
-
-def test_remote_freshness_uses_dates_and_falls_back_on_invalid_values(
-    rollout_modules: tuple[types.ModuleType, types.ModuleType, types.ModuleType],
-) -> None:
-    """Last-Modified comparison remains conservative for malformed dates."""
-    _, rollout, _ = rollout_modules
-
-    assert rollout._remote_is_not_newer(
-        {"last_modified": "Fri, 10 Jul 2026 08:00:00 GMT"},
-        {"Last-Modified": "Fri, 10 Jul 2026 07:00:00 GMT"},
-    )
-    assert rollout._remote_is_not_newer(
-        {"last_modified": "invalid"}, {"Last-Modified": "invalid"}
-    )
-    assert not rollout._remote_is_not_newer({}, {"Last-Modified": "invalid"})
+    assert rollout._read_metadata(metadata) == {}, "non-object JSON must be ignored"

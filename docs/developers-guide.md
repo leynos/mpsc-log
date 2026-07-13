@@ -10,6 +10,13 @@ local cache only when the authority is newer, and then applies the narrow
 repository policy in `typos.local.toml`. Edit the local policy and regenerate
 the configuration rather than changing generated entries by hand.
 
+The pure dictionary schema, merge, and rendering logic lives in
+`scripts/typos_rollout_dictionary.py`; reuse it only through the rollout and
+generator entrypoints. `scripts/typos_rollout_cache.py` owns guarded HTTPS and
+atomic persistence boundaries. Only connectivity failures may reuse stale or
+tracked policy: HTTP status, validation, and local persistence errors fail
+closed.
+
 ## Local Workflow
 
 Use `make all` as the public entrypoint for formatting, linting, and tests.
