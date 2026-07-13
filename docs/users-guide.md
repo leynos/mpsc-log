@@ -1,14 +1,14 @@
 # User Guide
 
-This guide explains how to use the generated mpsc-log project after
-rendering it from the template.
+This guide explains how to use the generated mpsc-log project after rendering
+it from the template.
 
 ## Generated Tooling
 
 Generated projects use Rust 2024, a pinned nightly toolchain, strict lint
 settings, and documented starter code. Library projects render `src/lib.rs`.
-Application projects render `src/main.rs`, `src/lib.rs`, release automation,
-and `[package.metadata.binstall]` metadata for binary installation.
+Application projects render `src/main.rs`, `src/lib.rs`, release automation, and
+`[package.metadata.binstall]` metadata for binary installation.
 
 Development builds use Cranelift for debug code generation. On Linux targets,
 `.cargo/config.toml` configures clang to link with `mold` so local debug builds
@@ -29,7 +29,9 @@ The generated `Makefile` exposes these public targets:
 - `make coverage` writes `lcov.info` using `cargo llvm-cov` and `lld`.
 - `make audit` derives the Rust workspace root with `cargo metadata` and runs
   `cargo audit` once from that root.
-- `make markdownlint` checks Markdown files.
+- `make spelling` refreshes the shared en-GB-oxendict policy, merges the narrow
+  repository overlay, and checks Markdown prose.
+- `make markdownlint` checks Markdown files and depends on the spelling gate.
 - `make nixie` validates Mermaid diagrams.
 
 Install `clang`, `lld`, `mold`, `python3`, and `cargo-audit` before running the
