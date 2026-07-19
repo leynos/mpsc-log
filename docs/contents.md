@@ -42,7 +42,6 @@ set.
   scripting stack, command execution patterns, and test expectations for helper
   scripts.
 
-
 ## Design artefacts
 
 - [ADR 001: Lock file naming](adr-001-lock-file-naming.md) records how the
