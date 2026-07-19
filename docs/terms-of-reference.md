@@ -165,8 +165,11 @@ artefact rather than trusting a caller's informal summary.
 - Optionally rotate on hourly, daily, or weekly UTC time boundaries, with
   interim size splits if the active log reaches the size threshold before the
   next boundary.
-- Compress rotated logs after the fourth rotation, subject to the final naming
-  and retention policy.
+- For size-only rotation, retain the newest four rotated generations as plain
+  files and gzip older retained generations.
+- For scheduled rotation, retain every size-split file in the newest four
+  completed periods as plain files, gzip only older retained periods, and never
+  compress files in the current period.
 - Read a sidecar TOML file for rotation configuration, schema-guided type
   coercion, and default field values.
 - Surface failures through stable exit codes and diagnostics suitable for
@@ -310,11 +313,7 @@ artefact rather than trusting a caller's informal summary.
 
 | Question                                             | Why it matters                                                                                                                                                         | Criteria for resolution                                                                                                        | Suggested path                           |
 | ---------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------- |
-| Which exact subset of `jo` syntax is in scope?       | `jo` includes arrays, file-value operators, duplicate-key behaviour, object paths, and coercion flags that may conflict with an object-root log contract.              | The design records accepted, rejected, and modified syntax with examples.                                                      | Resolved by ADR 003.                     |
-| What are the sidecar precedence rules?               | Defaults, schema coercion, CLI values, and `timestamp` overrides can conflict.                                                                                         | A precedence table defines every conflict outcome.                                                                             | Technical design.                        |
-| How should duplicate keys resolve?                   | JSON permits duplicate object names textually, but consumers often collapse them.                                                                                      | The product chooses reject, last-wins, first-wins, or compatibility behaviour.                                                 | Resolved by ADR 003.                     |
 | What does "gzipping after 4 rotations" mean exactly? | Retention, naming, and compression timing affect concurrency and user expectations.                                                                                    | The rotation policy specifies filenames, retention count, compression trigger, and whether recent rotations remain plain text. | Technical design.                        |
-| What lock protects rotation and sidecar reads?       | Append-only locking may not be enough when a process rotates while others are opening or creating files.                                                               | The design names the lock artefact and the critical sections it protects.                                                      | Technical design and stress tests.       |
 | What platforms are supported at v1?                  | File-locking and atomic rename semantics differ across Unix, Windows, and network filesystems.                                                                         | The project declares supported platforms and test coverage.                                                                    | ADR candidate.                           |
 | What are the stable exit codes?                      | Agents need to distinguish retryable timeout from invalid input or corrupted configuration.                                                                            | The user guide lists exit codes and diagnostics.                                                                               | User-guide update during implementation. |
 | Is a Rust library API part of the product?           | A public library API expands compatibility and documentation obligations.                                                                                              | The roadmap states whether the crate is CLI-only or also exposes supported library functions.                                  | Product decision.                        |

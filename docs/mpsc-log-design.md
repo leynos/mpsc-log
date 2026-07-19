@@ -191,13 +191,14 @@ has four tables:
 
 Merge and coercion order is deterministic:
 
-| Step | Rule                                                                                  | Winner                                                                                                                                               |
-| ---- | ------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1    | Start with sidecar `[defaults]` converted from TOML values to their JSON equivalents. | Sidecar defaults seed the record.                                                                                                                    |
-| 2    | Process CLI fields in argument order and write each value to its object path.         | Each CLI field wins over sidecar defaults and over earlier CLI fields at the same path.                                                              |
-| 3    | Coerce each CLI value before writing it.                                              | Explicit `-s`, `-n`, and `-b` flags win for that word; otherwise the matching `[schema]` entry wins; otherwise default `jo`-inspired inference wins. |
-| 4    | Insert the generated invocation timestamp.                                            | The generated canonical UTC `timestamp` is added only when no `timestamp` field exists after defaults and CLI fields.                                |
-| 5    | Serialize the resulting object.                                                       | The merged record is written as one compact JSON object.                                                                                             |
+| Step | Rule                                                                                  | Winner                                                                                                                                                 |
+| ---- | ------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 1    | Start with sidecar `[defaults]` converted from TOML values to their JSON equivalents. | Sidecar defaults seed the record.                                                                                                                      |
+| 2    | Process CLI fields in argument order and write each value to its object path.         | Each CLI field wins over sidecar defaults and over earlier CLI fields at the same path.                                                                |
+| 3    | Coerce each CLI value before writing it.                                              | Explicit `-s`, `-n`, and `-b` flags win for that word; otherwise the matching `[schema]` entry wins; otherwise default `jo`-inspired inference wins.   |
+| 4    | Validate an override timestamp, if present.                                           | A sidecar or CLI `timestamp` must match the canonical RFC 3339 UTC format in the event schema; an invalid override returns `EX_DATAERR` before append. |
+| 5    | Insert the generated invocation timestamp only when no override exists.               | The generated canonical UTC `timestamp` is added only when defaults and CLI fields did not produce one.                                                |
+| 6    | Serialize the resulting object.                                                       | The merged record is written as one compact JSON object.                                                                                               |
 
 The sidecar schema never overrides an explicit CLI coercion flag. Schema
 entries affect only values supplied for the matching object path; they do not
@@ -305,9 +306,11 @@ The scheduled protocol is:
 2. Determine the active file period from the first complete record in the
    active log, falling back to the pending period when the active log is empty.
 3. If the active period is older than the pending record period, finalize the
-   previous period first by rotating the active log into the active period's
-   scheduled filename. The active path is then a fresh empty file for the
-   pending period.
+   previous period first. Scan that period's existing archives: use its
+   unsuffixed scheduled filename only when no size-split archive exists and the
+   unsuffixed filename is unused; otherwise use the next unused positive
+   numeric suffix. Rotate the active log into that collision-free filename. The
+   active path is then a fresh empty file for the pending period.
 4. Evaluate `max_bytes` against the current active file after any
    period-boundary rollover. If that active file plus the pending record would
    exceed `max_bytes`, rotate it into the pending period's next size-split
@@ -316,11 +319,11 @@ The scheduled protocol is:
 
 Within a scheduled period, reaching `max_bytes` before the time boundary
 creates an interim size split. Size splits add a numeric suffix within that
-period: `run.<period>.1.jsonl`, `run.<period>.2.jsonl`, and so on. If a period
-has no size splits, its final scheduled archive uses the unsuffixed base name,
-such as `run.<period>.jsonl`. If a period already has one or more size-split
-files, the final archive at the next time boundary also uses the next numeric
-suffix so that every file for that period has an ordered generation number.
+period: `run.<period>.1.jsonl`, `run.<period>.2.jsonl`, and so on. The final
+scheduled archive uses `run.<period>.jsonl` only when that filename is unused
+and the period has no size splits. Otherwise it uses the next unused positive
+numeric suffix, so it never overwrites an archive or collides with
+`run.<period>.1.jsonl`.
 
 Retention and compression are period-based in scheduled mode. The newest four
 completed periods remain plain, including all size-split files inside those
@@ -337,8 +340,9 @@ invocation before appending the new record.
 
 The normative JSON Schema lives in
 [mpsc-log-event-schema.json](mpsc-log-event-schema.json). The schema requires
-`timestamp`, permits additional fields, and reserves structured namespaces for
-`run`, `task`, `attempt`, `coderabbit`, `audit`, and `defect`.
+`timestamp`, conditionally requires the table's fields for each named event,
+permits additional fields, and reserves structured namespaces for `run`, `task`,
+`attempt`, `coderabbit`, `audit`, and `defect`.
 
 The df12-build integration should emit these event names first:
 

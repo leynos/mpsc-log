@@ -151,8 +151,9 @@ generated timestamp can merge deterministically. Its outcome informs the
 external JSONL contract and df12-build event examples. See mpsc-log-design.md
 §§2, 6, 9, 11-12, mpsc-log-sidecar.example.toml, and mpsc-log-event-schema.json.
 
-- [ ] 2.2.1. Implement sidecar path derivation, TOML loading, and semantic
-  validation.
+- [ ] 2.2.1. Implement sidecar path derivation, TOML v1.0 parsing, and
+  semantic validation for the `[rotation]`, `[locking]`, `[defaults]`, and
+  `[schema]` tables.
   - Requires 2.1.1.
   - See mpsc-log-design.md §§2, 6, 10 and
     mpsc-log-sidecar.example.toml.
@@ -164,15 +165,13 @@ external JSONL contract and df12-build event examples. See mpsc-log-design.md
   - See mpsc-log-design.md §§6, 9, 11 and
     mpsc-log-event-schema.json.
   - Success: sidecar defaults seed the record; CLI fields win over defaults
-    and earlier duplicate paths; CLI coercion uses explicit `-s`, `-n`, or
-    `-b` flags before schema entries and default `jo`-inspired inference; and
-    the generated `timestamp` is inserted only if no timestamp exists after
-    defaults and CLI fields.
+    and earlier duplicate paths; and CLI coercion uses explicit `-s`, `-n`, or
+    `-b` flags before schema entries and default `jo`-inspired inference.
 - [ ] 2.2.3. Generate the default RFC 3339 UTC `timestamp` field.
   - Requires 1.2.3 and 2.2.2.
   - See mpsc-log-design.md §§2, 6 and terms-of-reference.md §§2, 6, 8.
-  - Success: records receive an invocation-time UTC timestamp unless a prior
-    merge step already produced `timestamp`.
+  - Success: records receive an invocation-time UTC timestamp unless defaults
+    or CLI fields already produced `timestamp`.
 
 ### 2.3. Append the first useful JSONL record
 
@@ -227,8 +226,11 @@ critical-section protocol and timeout behaviour. See mpsc-log-design.md §§4, 7
 - [ ] 3.1.2. Implement exclusive journal locking with a configurable timeout.
   - Requires 3.1.1.
   - See mpsc-log-design.md §§2, 4, 6-7, 10 and context.md.
-  - Success: contending processes serialize through the same lock file, and
-    lock timeout failures return `EX_TEMPFAIL`.
+  - Success: a pure function derives the lock path by appending `.lock` to the
+    complete journal filename in the same directory, rejects caller-supplied
+    `.lock` journal filenames, and gives `run` and `run.jsonl` distinct locks.
+    Tests cover those documented names; contending processes serialize through
+    the same lock file; and lock timeout failures return `EX_TEMPFAIL`.
 - [ ] 3.1.3. Read sidecar configuration inside the journal critical section.
   - Requires 3.1.2.
   - See mpsc-log-design.md §§4, 6-7 and terms-of-reference.md §8.2.
