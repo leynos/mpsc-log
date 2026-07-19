@@ -80,5 +80,73 @@
         "severity": { "type": "string" }
       }
     }
-  }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "event": { "const": "phase.started" } }, "required": ["event"] },
+      "then": {
+        "required": ["run", "attempt"],
+        "properties": {
+          "run": { "required": ["id"] },
+          "attempt": { "required": ["phase", "agent"] }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "event": { "const": "phase.finished" } }, "required": ["event"] },
+      "then": {
+        "required": ["run", "attempt"],
+        "properties": {
+          "run": { "required": ["id"] },
+          "attempt": { "required": ["phase", "status", "duration_ms"] }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "event": { "const": "review.round" } }, "required": ["event"] },
+      "then": {
+        "required": ["task", "attempt"],
+        "properties": {
+          "task": { "required": ["id"] },
+          "attempt": { "required": ["phase", "round", "status"] }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "event": { "const": "task.finished" } }, "required": ["event"] },
+      "then": {
+        "required": ["task"],
+        "properties": {
+          "task": { "required": ["id", "phase", "work_items", "changed_files", "dependency_depth"] }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "event": { "const": "coderabbit.attempt" } }, "required": ["event"] },
+      "then": {
+        "required": ["coderabbit"],
+        "properties": {
+          "coderabbit": { "required": ["status", "wait_ms", "retry", "deferred"] }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "event": { "const": "audit.finding" } }, "required": ["event"] },
+      "then": {
+        "required": ["audit"],
+        "properties": {
+          "audit": { "required": ["severity", "lane", "finding_count"] }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "event": { "const": "defect.escape" } }, "required": ["event"] },
+      "then": {
+        "required": ["defect"],
+        "properties": {
+          "defect": { "required": ["source", "escaped_from", "severity"] }
+        }
+      }
+    }
+  ]
 }
