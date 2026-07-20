@@ -321,7 +321,7 @@ Within a scheduled period, reaching `max_bytes` before the time boundary
 creates an interim size split. Size splits add a numeric suffix within that
 period: `run.<period>.1.jsonl`, `run.<period>.2.jsonl`, and so on. The final
 scheduled archive uses `run.<period>.jsonl` only when that filename is unused
-and the period has no size splits. Otherwise it uses the next unused positive
+and the period has no size splits. Otherwise, it uses the next unused positive
 numeric suffix, so it never overwrites an archive or collides with
 `run.<period>.1.jsonl`.
 

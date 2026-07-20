@@ -151,14 +151,20 @@ generated timestamp can merge deterministically. Its outcome informs the
 external JSONL contract and df12-build event examples. See mpsc-log-design.md
 §§2, 6, 9, 11-12, mpsc-log-sidecar.example.toml, and mpsc-log-event-schema.json.
 
-- [ ] 2.2.1. Implement sidecar path derivation, TOML v1.0 parsing, and
-  semantic validation for the `[rotation]`, `[locking]`, `[defaults]`, and
-  `[schema]` tables.
+- [ ] 2.2.1. Implement sidecar path derivation by extension replacement, TOML
+  v1.0 parsing, and semantic validation for the `[rotation]`, `[locking]`,
+  `[defaults]`, and `[schema]` tables.
   - Requires 2.1.1.
-  - See mpsc-log-design.md §§2, 6, 10 and
+  - See mpsc-log-design.md §§2, 6, 10, adr-001-lock-file-naming.md, and
     mpsc-log-sidecar.example.toml.
-  - Success: missing sidecars use defaults, malformed TOML returns
-    `EX_DATAERR`, and semantically invalid configuration returns `EX_CONFIG`.
+  - Success: derivation replaces the journal filename extension with `.toml`,
+    appending `.toml` when the journal has no extension, so `run`, `run.jsonl`,
+    and `run.ndjson` each derive `run.toml`; missing sidecars use defaults;
+    malformed TOML returns `EX_DATAERR`; and semantically invalid configuration
+    returns `EX_CONFIG`.
+  - Success: a `.toml` journal filename whose derived sidecar path equals the
+    journal path is rejected with `EX_USAGE`. Tests cover the shared-stem
+    derivations and reject the self-sidecar `.toml` journal case.
 - [ ] 2.2.2. Implement deterministic record merging and schema-guided
   coercion.
   - Requires 2.1.3 and 2.2.1.
