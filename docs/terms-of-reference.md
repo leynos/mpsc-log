@@ -165,6 +165,7 @@ artefact rather than trusting a caller's informal summary.
 - Optionally rotate on hourly, daily, or weekly UTC time boundaries, with
   interim size splits if the active log reaches the size threshold before the
   next boundary.
+- Define local generation retention on the writer's filesystem, as follows.
 - For size-only rotation, retain the newest four rotated generations as plain
   files and gzip older retained generations.
 - For scheduled rotation, retain every size-split file in the newest four
@@ -180,9 +181,10 @@ artefact rather than trusting a caller's informal summary.
 
 ### 6.2 Non-goals
 
-- Centralized log ingestion, search, dashboards, alerting, and retention policy
-  are out of scope; users needing those should ship the JSONL output into an
-  observability system.
+- Centralized log ingestion, search, dashboards, alerting, and centralized or
+  downstream retention policy are out of scope; users needing those should ship
+  the JSONL output into an observability system. Local rotation and compression
+  retention remain in scope, per the goals above.
 - A long-running daemon or background service is out of scope; the product is a
   short-lived CLI.
 - Preserving chronological file order by timestamp is out of scope. The default
