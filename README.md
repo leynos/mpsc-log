@@ -1,5 +1,8 @@
 # mpsc-log
 
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](
+https://deepwiki.com/leynos/mpsc-log)
+
 This is a generated project using [Copier](https://copier.readthedocs.io/).
 
 ## Documentation
