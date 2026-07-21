@@ -312,9 +312,11 @@ The scheduled protocol is:
    numeric suffix. Rotate the active log into that collision-free filename. The
    active path is then a fresh empty file for the pending period.
 4. Evaluate `max_bytes` against the current active file after any
-   period-boundary rollover. If that active file plus the pending record would
-   exceed `max_bytes`, rotate it into the pending period's next size-split
-   filename and continue with a fresh active file.
+   period-boundary rollover. If the active file already contains data and that
+   data plus the pending record would exceed `max_bytes`, rotate it into the
+   pending period's next size-split filename and continue with a fresh active
+   file. When the active file is empty, append the oversized pending record
+   directly rather than rotating an empty active file into an archive.
 5. Append the pending record to the active log.
 
 Within a scheduled period, reaching `max_bytes` before the time boundary

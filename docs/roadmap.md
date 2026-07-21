@@ -176,8 +176,11 @@ external JSONL contract and df12-build event examples. See mpsc-log-design.md
 - [ ] 2.2.3. Generate the default RFC 3339 UTC `timestamp` field.
   - Requires 1.2.3 and 2.2.2.
   - See mpsc-log-design.md §§2, 6 and terms-of-reference.md §§2, 6, 8.
-  - Success: records receive an invocation-time UTC timestamp unless defaults
-    or CLI fields already produced `timestamp`.
+  - Success: defaults- and CLI-supplied `timestamp` values are validated
+    against the documented RFC 3339 UTC contract before append; valid overrides
+    are preserved, invalid overrides fail with `EX_DATAERR`, and an
+    invocation-time RFC 3339 UTC `timestamp` is generated when no valid
+    timestamp already exists.
 
 ### 2.3. Append the first useful JSONL record
 
@@ -235,8 +238,11 @@ critical-section protocol and timeout behaviour. See mpsc-log-design.md §§4, 7
   - Success: a pure function derives the lock path by appending `.lock` to the
     complete journal filename in the same directory, rejects caller-supplied
     `.lock` journal filenames, and gives `run` and `run.jsonl` distinct locks.
-    Tests cover those documented names; contending processes serialize through
-    the same lock file; and lock timeout failures return `EX_TEMPFAIL`.
+    Tests cover those documented names; contending processes on a supported
+    local filesystem serialize through the same lock file; and lock timeout
+    failures return `EX_TEMPFAIL`. Network-filesystem support (NFS and CIFS)
+    remains deferred until the named filesystem verification matrix in step
+    6.2.1.
 - [ ] 3.1.3. Read sidecar configuration inside the journal critical section.
   - Requires 3.1.2.
   - See mpsc-log-design.md §§4, 6-7 and terms-of-reference.md §8.2.
