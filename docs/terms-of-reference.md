@@ -18,12 +18,12 @@
 ## 1. Background and motivation
 
 `mpsc-log` exists for multi-agent and scripted workflows that need several
-independent processes to record structured events in one append-only log file.
+independent processes to record structured events in one append-only journal.
 The immediate problem is not creating JSON. Tools such as `jo` already turn
 shell arguments into JSON objects.[^1] The gap is that agents also need a small
-command-line interface (CLI) that appends each record to a shared JSON Lines
-(JSONL) file without overwriting existing data, losing concurrent writes, or
-corrupting the file during rotation.
+command-line interface (CLI) that appends each record as a JSON Lines (JSONL)
+entry to a shared journal without overwriting existing data, losing concurrent
+writes, or corrupting the journal during rotation.
 
 The motivating context is local automation where several agents may run at the
 same time and cannot coordinate through a long-lived service. Each agent should
@@ -51,7 +51,7 @@ records are JSON objects serialized as one JSON value per line. JSONL keeps the
 log easy to append, stream, grep, split, and ingest into later tools without
 requiring the whole file to be rewritten.
 
-The command accepts the log path as its first argument. Later arguments
+The command accepts the journal path as its first argument. Later arguments
 describe fields using selected `jo`-inspired key and value words, including
 type coercion flags and object paths. The CLI is not textually compatible with
 all `jo` output: the root value must always be an object, and duplicate writes
@@ -61,8 +61,8 @@ The default entry includes a `timestamp` field containing a Coordinated
 Universal Time (UTC) timestamp captured when the command is invoked. The
 timestamp uses RFC 3339, the Internet timestamp profile of ISO 8601.[^2]
 
-The tool also reads a sidecar TOML file next to the log file. The sidecar has
-the same base filename as the log file and a `.toml` extension. It defines
+The tool also reads a sidecar TOML file next to the journal. The sidecar has
+the same base filename as the journal and a `.toml` extension. It defines
 rotation configuration, type-coercion schema, and default field values.
 
 The term "sidecar" has two relevant meanings in the current domain. The ODW
@@ -106,7 +106,7 @@ The current alternatives each solve part of the problem:
   than a per-write safety mechanism integrated with concurrent appends.
 
 The gap is a narrowly scoped CLI that combines selected `jo`-inspired record
-construction with safe append and rotation behaviour for one local JSONL file.
+construction with safe append and rotation behaviour for one local journal.
 
 ## 4. Users and stakeholders
 
@@ -125,7 +125,7 @@ Table 1: Stakeholder mapping for the initial product boundary.
 
 When an agent workflow launches several independent command-line processes, the
 workflow author wants each process to append a structured event to the same
-local log file, so they can inspect the run later without reconstructing events
+local journal, so they can inspect the run later without reconstructing events
 from scattered output.
 
 When a df12-build ODW run processes roadmap tasks through planning, review,
@@ -144,7 +144,7 @@ artefact rather than trusting a caller's informal summary.
 
 ### 6.1 Goals
 
-- Accept a log-file path as the first CLI argument and interpret following
+- Accept a journal path as the first CLI argument and interpret following
   arguments as record fields.
 - Support the selected `jo`-inspired key/value syntax needed for object
   records, including type coercion flags and object paths.
@@ -156,21 +156,23 @@ artefact rather than trusting a caller's informal summary.
   invocation.
 - Prevent concurrent calls from overwriting existing logs or colliding with
   each other while creating, appending to, or rotating the file.
-- Create missing parent directories for the log-file path automatically when
+- Create missing parent directories for the journal path automatically when
   filesystem permissions allow it.
 - Use locking and safe writes with a five-second default timeout.
-- Gracefully handle simultaneous attempts to create the log file and sidecar
-  coordination artefacts.
+- Gracefully handle simultaneous attempts to create the journal file and
+  sidecar coordination artefacts.
 - Rotate by default after the active log reaches 1 MiB.
 - Optionally rotate on hourly, daily, or weekly UTC time boundaries, with
   interim size splits if the active log reaches the size threshold before the
   next boundary.
 - Define local generation retention on the writer's filesystem, as follows.
-- For size-only rotation, retain the newest four rotated generations as plain
-  files and gzip older retained generations.
-- For scheduled rotation, retain every size-split file in the newest four
-  completed periods as plain files, gzip only older retained periods, and never
-  compress files in the current period.
+- For size-only rotation, retain the newest rotated generations (four by
+  default, via `plain_generations`) as plain files, and gzip older
+  retained generations (per `compressed_generations`).
+- For scheduled rotation, retain every size-split file in the newest
+  completed periods (four by default, via `plain_generations`) as plain
+  files, gzip only older retained periods (per `compressed_generations`),
+  and never compress files in the current period.
 - Read a sidecar TOML file for rotation configuration, schema-guided type
   coercion, and default field values.
 - Surface failures through stable exit codes and diagnostics suitable for
@@ -213,10 +215,10 @@ artefact rather than trusting a caller's informal summary.
   basic type coercions.
 - Stress tests with many concurrent invocations produce the same number of
   valid JSONL records as successful command exits.
-- Simultaneous first writes to a missing log file create exactly one usable log
+- Simultaneous first writes to a missing journal create exactly one usable log
   and do not truncate, replace, or interleave records.
-- A first write to a log path in a missing directory tree creates the required
-  parent directories when permissions allow it.
+- A first write to a journal path in a missing directory tree creates the
+  required parent directories when permissions allow it.
 - Rotation during concurrent writes leaves every successful entry in either the
   active file or a rotated file.
 - A df12-build run can record one journal entry per meaningful phase, review
@@ -251,7 +253,7 @@ artefact rather than trusting a caller's informal summary.
 
 ### 8.1 Hard constraints
 
-- The first CLI parameter is the log-file path.
+- The first CLI parameter is the journal path.
 - Later parameters are key/value words using the accepted `jo`-inspired
   syntax.
 - The root record must be a JSON object.
@@ -260,12 +262,13 @@ artefact rather than trusting a caller's informal summary.
 - The default scheduled rotation policy is `none`.
 - Scheduled rotation modes are `hourly`, `daily`, and `weekly`; they use UTC
   period boundaries and do not imply a `max_age` retention setting.
-- Rotated logs are compressed after four rotations.
-- The sidecar configuration file is TOML and derives its path from the log file
-  path by replacing the filename extension with `.toml`.
+- Rotated logs are compressed after the configured plain generation count,
+  four by default.
+- The sidecar configuration file is TOML and derives its path from the
+  journal path by replacing the filename extension with `.toml`.
 - The default record includes `timestamp` unless the final precedence rules say
   otherwise.
-- Missing parent directories for the log-file path are created automatically
+- Missing parent directories for the journal path are created automatically
   when permissions allow it.
 - The tool must tolerate concurrent writers and concurrent initial file
   creation.

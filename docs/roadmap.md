@@ -375,11 +375,19 @@ and context.md.
   - See mpsc-log-design.md §8.
   - Success: the next invocation after a time break archives the previous
     active segment under the period that produced its records.
+  - Success: a unit or behavioural test shows period-boundary rollover runs
+    before the `max_bytes` size check, so the size split is evaluated against
+    the fresh active file for the pending period.
 - [ ] 4.3.3. Implement interim size-split suffixes inside scheduled periods.
   - Requires 4.3.2.
   - See mpsc-log-design.md §8.
   - Success: busy periods produce ordered `.n` suffixes, and final scheduled
     archives use the next suffix when a period already has size splits.
+  - Success: a unit or behavioural test covers collision-free suffix selection
+    when archives for the period already exist, so rotation never overwrites an
+    existing archive.
+  - Success: a unit or behavioural test covers appending an oversized record
+    directly to an empty active journal without creating an empty archive.
 - [ ] 4.3.4. Implement scheduled-mode period retention and compression.
   - Requires 4.2.3 and 4.3.3.
   - See mpsc-log-design.md §8.
