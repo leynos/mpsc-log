@@ -179,8 +179,8 @@ external JSONL contract and df12-build event examples. See mpsc-log-design.md
   - Success: defaults- and CLI-supplied `timestamp` values are validated
     against the documented RFC 3339 UTC contract before append; valid overrides
     are preserved, invalid overrides fail with `EX_DATAERR`, and an
-    invocation-time RFC 3339 UTC `timestamp` is generated when no valid
-    timestamp already exists.
+    invocation-time RFC 3339 UTC `timestamp` is generated only when no
+    `timestamp` override exists.
 
 ### 2.3. Append the first useful JSONL record
 
