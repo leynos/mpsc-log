@@ -264,14 +264,20 @@ Rotation runs while holding the journal lock. The sidecar `schedule` value is
 one of `none`, `hourly`, `daily`, or `weekly`; the default is `none`. There is
 no `max_age` setting in the v1 configuration surface.
 
-When `schedule = "none"`, rotation is size-only:
+When `schedule = "none"`, rotation is size-only. The active threshold, plain
+generation count, and compressed generation count are the `[rotation]` sidecar
+settings `max_bytes`, `plain_generations`, and `compressed_generations`; the
+values below are the defaults and are overridable through the sidecar:
 
-- active threshold: 1 MiB;
-- plain generations: four;
-- compressed generations: 32;
+- active threshold (`max_bytes`): 1 MiB;
+- plain generations (`plain_generations`): four;
+- compressed generations (`compressed_generations`): 32;
 - newest plain rotation: `<stem>.1<ext>`;
 - oldest plain rotation before compression: `<stem>.4<ext>`;
 - compressed rotations: `<stem>.5<ext>.gz` through `<stem>.36<ext>.gz`.
+
+The rotation names above follow from the default counts; overriding the counts
+shifts the highest plain and compressed suffixes accordingly.
 
 For `run.jsonl`, the active path is `run.jsonl`; the newest plain rotation is
 `run.1.jsonl`; the first compressed rotation is `run.5.jsonl.gz`.
@@ -327,9 +333,10 @@ and the period has no size splits. Otherwise, it uses the next unused positive
 numeric suffix, so it never overwrites an archive or collides with
 `run.<period>.1.jsonl`.
 
-Retention and compression are period-based in scheduled mode. The newest four
-completed periods remain plain, including all size-split files inside those
-periods. Older retained periods are gzipped, and periods beyond
+Retention and compression are period-based in scheduled mode. The newest
+`plain_generations` completed periods remain plain, including all size-split
+files inside those periods. Older retained periods are gzipped up to
+`compressed_generations`, and periods beyond
 `plain_generations + compressed_generations` are deleted. This keeps hourly,
 daily, and weekly retention predictable even when one busy period produces many
 size-split files.
