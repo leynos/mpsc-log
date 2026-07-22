@@ -61,9 +61,10 @@ The default entry includes a `timestamp` field containing a Coordinated
 Universal Time (UTC) timestamp captured when the command is invoked. The
 timestamp uses RFC 3339, the Internet timestamp profile of ISO 8601.[^2]
 
-The tool also reads a sidecar TOML file next to the journal. The sidecar has
-the same base filename as the journal and a `.toml` extension. It defines
-rotation configuration, type-coercion schema, and default field values.
+The tool also reads a sidecar TOML file whose path is derived from the journal
+path: it replaces the journal's final extension with `.toml`, or appends
+`.toml` when the journal has no extension. It defines rotation configuration,
+type-coercion schema, and default field values.
 
 The term "sidecar" has two relevant meanings in the current domain. The ODW
 workflow has a workflow sidecar directory where run artefacts belong.

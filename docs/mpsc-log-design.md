@@ -264,17 +264,20 @@ Rotation runs while holding the journal lock. The sidecar `schedule` value is
 one of `none`, `hourly`, `daily`, or `weekly`; the default is `none`. There is
 no `max_age` setting in the v1 configuration surface.
 
-When `schedule = "none"`, rotation is size-only. The active threshold, plain
-generation count, and compressed generation count are the `[rotation]` sidecar
-settings `max_bytes`, `plain_generations`, and `compressed_generations`; the
-values below are the defaults and are overridable through the sidecar:
+When `schedule = "none"`, rotation is size-only. The active threshold
+(`max_bytes`), the plain generation count `P` (`plain_generations`), and the
+compressed generation count `C` (`compressed_generations`) are `[rotation]`
+sidecar settings; the values below are the defaults and are overridable through
+the sidecar:
 
 - active threshold (`max_bytes`): 1 MiB;
-- plain generations (`plain_generations`): four;
-- compressed generations (`compressed_generations`): 32;
+- plain generations `P` (`plain_generations`): four;
+- compressed generations `C` (`compressed_generations`): 32;
 - newest plain rotation: `<stem>.1<ext>`;
-- oldest plain rotation before compression: `<stem>.4<ext>`;
-- compressed rotations: `<stem>.5<ext>.gz` through `<stem>.36<ext>.gz`.
+- oldest plain rotation before compression: `<stem>.P<ext>` (`<stem>.4<ext>`
+  by default);
+- compressed rotations: `<stem>.(P+1)<ext>.gz` through `<stem>.(P+C)<ext>.gz`
+  (`<stem>.5<ext>.gz` through `<stem>.36<ext>.gz` by default).
 
 The rotation names above follow from the default counts; overriding the counts
 shifts the highest plain and compressed suffixes accordingly.
@@ -282,15 +285,34 @@ shifts the highest plain and compressed suffixes accordingly.
 For `run.jsonl`, the active path is `run.jsonl`; the newest plain rotation is
 `run.1.jsonl`; the first compressed rotation is `run.5.jsonl.gz`.
 
+`plain_generations` and `compressed_generations` are non-negative integers that
+count retained archive generations; the active file is always separate.
+Generation `1` is the newest archive and generation `P + C` is the oldest, so
+the indices below derive from `P` and `C` rather than fixed numbers. Semantic
+validation rejects negative counts with `EX_CONFIG`.
+
+Zero counts are valid. When `P` is zero, no plain archives exist and the active
+file is gzipped straight into generation `1`. When `C` is zero, no archive is
+compressed and the oldest plain generation is deleted rather than gzipped. When
+both are zero, rotation retains only the active file and discards the previous
+contents.
+
 The size-only rotation order is oldest-to-newest:
 
-1. Delete generation 36 if present.
-2. Rename compressed generations upward.
-3. Gzip generation 4 into generation 5 and remove generation 4 only after the
-   gzip output is complete.
-4. Rename plain generations 3 to 4, 2 to 3, and 1 to 2.
-5. Rename the active file to generation 1.
-6. Create a fresh active file by appending the pending record.
+1. Delete generation `P + C` if present.
+2. Rename each compressed generation `i` from `P + C - 1` down to `P + 1` into
+   generation `i + 1`.
+3. Gzip plain generation `P` into generation `P + 1`, removing generation `P`
+   only after the gzip output is complete. Skip this step when `C` is zero
+   (generation `P` was already deleted in step 1) or when `P` is zero (the
+   active file is compressed in step 5 instead).
+4. Rename each plain generation `i` from `P - 1` down to `1` into generation
+   `i + 1`.
+5. Rename the active file to generation `1` when `P` is at least one; when `P`
+   is zero and `C` is at least one, gzip the active file into generation `1`.
+6. Create a fresh active file by appending the pending record. When both `P` and
+   `C` are zero there is no archive generation, so the previous active contents
+   are discarded.
 
 When `schedule` is `hourly`, `daily`, or `weekly`, the command uses UTC period
 boundaries derived from the invocation timestamp:
