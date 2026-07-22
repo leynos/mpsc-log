@@ -33,6 +33,7 @@ extend-ignore-re = [
     "(?s)```.*?```",
     "\\bAzure Architecture\\s+Center \\| Microsoft Learn\\b",
     "\\bGitHub Flavored\\s+Markdown\\b",
+    "\\bflate2\\b",
     "\\brust-analyzer\\b",
     "`[^`\\n]+`",
 ]
@@ -841,6 +842,7 @@ extend-ignore-re = [
 "finalizers" = "finalizers"
 "finalizes" = "finalizes"
 "finalizing" = "finalizing"
+"flate2" = "flate2"
 "formalisable" = "formalizable"
 "formalisably" = "formalizably"
 "formalisation" = "formalization"
