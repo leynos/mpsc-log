@@ -31,7 +31,7 @@ jobs:
       - name: Format
         run: make check-fmt
       - name: Markdown lint
-        uses: DavidAnson/markdownlint-cli2-action@2df9e28eb87988518ef3880c34edad45d65b1668
+        uses: DavidAnson/markdownlint-cli2-action@92a0fc4bfcca7cda90e73e14c0c17568b057574e
         with:
           globs: |
             **/*.md
