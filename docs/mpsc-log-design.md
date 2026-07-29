@@ -301,25 +301,36 @@ zero, no plain archives exist and the active file is gzipped straight into
 generation `1`. When `C` is zero, no archive is compressed and the oldest plain
 generation is deleted rather than gzipped.
 
-The size-only rotation order is oldest-to-newest:
+The size-only rotation order is oldest-to-newest. No record-bearing file is
+unlinked until the invocation commits:
 
-1. Delete generation `P + C` if present.
+1. Stage the eviction. If generation `P + C` exists, rename it aside to a
+   reserved staging name in the same directory rather than deleting it. The
+   staging name shares the journal directory so the rename stays within one
+   filesystem and is therefore atomic.
 2. Rename each compressed generation `i` from `P + C - 1` down to `P + 1` into
    generation `i + 1`.
 3. Gzip plain generation `P` into generation `P + 1`, removing generation `P`
-   only after the gzip output is complete. Skip this step when `C` is zero
-   (generation `P` was already deleted in step 1) or when `P` is zero (the
-   active file is compressed in step 5 instead).
+   only after the gzip output is committed. Skip this step when `C` is zero
+   (generation `P` is the staged eviction) or when `P` is zero (the active file
+   is compressed in step 5 instead).
 4. Rename each plain generation `i` from `P - 1` down to `1` into generation
    `i + 1`.
 5. Move the active file into generation `1`. When `P` is at least one this is a
    rename, which is atomic on a supported local filesystem. When `P` is zero,
    gzip the active file into generation `1` instead, and remove the active file
-   only after that gzip output is committed, so a failed compression leaves the
-   previous journal in place and aborts before any append.
-6. Create a fresh active file by appending the pending record. Because step 5
-   always commits the previous contents to generation `1` first, a failure here
-   leaves those contents readable in the rotated journal.
+   only after that gzip output is committed.
+6. Create a fresh active file by appending the pending record.
+7. Commit the rotation by unlinking the staged eviction, once the append has
+   succeeded.
+
+Steps 1 to 5 are atomic renames and `atomic-write-file` commits, so a failure in
+any of them aborts the invocation before the append and unwinds the renames it
+has already made, in reverse order, back to the prior generation layout. A
+failure in step 6 leaves the previous contents readable in generation `1`.
+Because the eviction is unlinked only in step 7, no failure path deletes a
+record-bearing file. A process killed mid-rotation can leave a staged eviction
+file behind; the next invocation reclaims it while holding the journal lock.
 
 When `schedule` is `hourly`, `daily`, or `weekly`, the command uses UTC period
 boundaries derived from the invocation timestamp:

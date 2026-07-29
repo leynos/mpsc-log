@@ -358,6 +358,9 @@ mpsc-log-design.md §§2, 8, 11 and terms-of-reference.md §§6-7.
   - See mpsc-log-design.md §§6, 8.
   - Success: files beyond `plain_generations + compressed_generations` are
     deleted only after newer retained files are safely in place.
+  - Success: the evicted oldest generation is staged aside rather than deleted,
+    is unlinked only after the append commits, and a staged eviction left by a
+    killed process is reclaimed by the next invocation under the journal lock.
 
 ### 4.3. Deliver UTC scheduled rotation with size splits
 
