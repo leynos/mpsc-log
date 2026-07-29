@@ -289,13 +289,17 @@ For `run.jsonl`, the active path is `run.jsonl`; the newest plain rotation is
 count retained archive generations; the active file is always separate.
 Generation `1` is the newest archive and generation `P + C` is the oldest, so
 the indices below derive from `P` and `C` rather than fixed numbers. Semantic
-validation rejects negative counts with `EX_CONFIG`.
+validation rejects negative counts with `EX_CONFIG`, and also rejects
+`P + C == 0`: rotation must retain at least one generation. A configuration
+that would leave rotation with nowhere to put the previous journal is a
+configuration error rather than a supported mode, because discarding the
+rotated journal cannot be made atomic and would contradict the guarantee that a
+failed invocation leaves the previous journal readable.
 
-Zero counts are valid. When `P` is zero, no plain archives exist and the active
-file is gzipped straight into generation `1`. When `C` is zero, no archive is
-compressed and the oldest plain generation is deleted rather than gzipped. When
-both are zero, rotation retains only the active file and discards the previous
-contents.
+One zero count is valid because `P + C` is still at least one. When `P` is
+zero, no plain archives exist and the active file is gzipped straight into
+generation `1`. When `C` is zero, no archive is compressed and the oldest plain
+generation is deleted rather than gzipped.
 
 The size-only rotation order is oldest-to-newest:
 
@@ -308,11 +312,14 @@ The size-only rotation order is oldest-to-newest:
    active file is compressed in step 5 instead).
 4. Rename each plain generation `i` from `P - 1` down to `1` into generation
    `i + 1`.
-5. Rename the active file to generation `1` when `P` is at least one; when `P`
-   is zero and `C` is at least one, gzip the active file into generation `1`.
-6. Create a fresh active file by appending the pending record. When both `P` and
-   `C` are zero there is no archive generation, so the previous active contents
-   are discarded.
+5. Move the active file into generation `1`. When `P` is at least one this is a
+   rename, which is atomic on a supported local filesystem. When `P` is zero,
+   gzip the active file into generation `1` instead, and remove the active file
+   only after that gzip output is committed, so a failed compression leaves the
+   previous journal in place and aborts before any append.
+6. Create a fresh active file by appending the pending record. Because step 5
+   always commits the previous contents to generation `1` first, a failure here
+   leaves those contents readable in the rotated journal.
 
 When `schedule` is `hourly`, `daily`, or `weekly`, the command uses UTC period
 boundaries derived from the invocation timestamp:

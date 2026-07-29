@@ -165,6 +165,10 @@ external JSONL contract and df12-build event examples. See mpsc-log-design.md
   - Success: a `.toml` journal filename whose derived sidecar path equals the
     journal path is rejected with `EX_USAGE`. Tests cover the shared-stem
     derivations and reject the self-sidecar `.toml` journal case.
+  - Success: `[rotation]` generation counts are validated as non-negative and
+    as retaining at least one generation, so a negative count and
+    `plain_generations = 0` with `compressed_generations = 0` each return
+    `EX_CONFIG`.
 - [ ] 2.2.2. Implement deterministic record merging and schema-guided
   coercion.
   - Requires 2.1.3 and 2.2.1.
