@@ -42,10 +42,10 @@ jobs:
             target: x86_64-unknown-freebsd
             ext: ""
     steps:
-      - uses: actions/checkout@900f2210b1d28bbbd0bd22d17926b9e224e8f231
+      - uses: actions/checkout@f548e57e544e1ff5a4c46bf1e1b8685f8e4a348a
         with:
           persist-credentials: false
-      - uses: leynos/shared-actions/.github/actions/setup-rust@455d9ed03477c0026da96c2541ca26569a74acac
+      - uses: leynos/shared-actions/.github/actions/setup-rust@19a7f5d1b8d5c1b2236c39720a5744492b3fc129
         with:
           toolchain: stable
       - name: Cache cross binary
@@ -105,7 +105,7 @@ jobs:
       - uses: actions/download-artifact@484a0b528fb4d7bd804637ccb632e47a0e638317
         with:
           path: artifacts
-      - uses: softprops/action-gh-release@5018f9ec04d67dca7353bf3f40a0933e8d7ddf24
+      - uses: softprops/action-gh-release@5a6f51711ce2ba103b78f5e9550f810679f11e0e
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
