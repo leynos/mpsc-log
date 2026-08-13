@@ -7,7 +7,7 @@
 //! agent editing the Makefile without preserving this wiring fails this
 //! suite locally, ahead of the estate-wide DF-004 audit.
 
-use std::io;
+use std::{io, process::Command};
 
 use cap_std::{ambient_authority, fs::Dir};
 use rstest::rstest;
@@ -134,6 +134,56 @@ fn coverage_target_excludes_dev_fast() {
         "`coverage` must keep the platform LLVM backend and linker; it must never reference \
          tools/dev-fast/config.toml. See AGENTS.md, \"dev-fast is the standard development path\""
     );
+}
+
+/// Runs `make --dry-run <target> CARGO=probe-cargo` from the crate root and
+/// returns its stdout: the recipe with variables substituted but no
+/// commands actually executed. Process spawning here is unconstrained by
+/// the repository's filesystem-capability policy.
+///
+/// Returns an `io::Error` instead of panicking; see [`crate_dir`].
+fn make_dry_run(target: &str) -> io::Result<String> {
+    let output = Command::new("make")
+        .args(["--dry-run", target, "CARGO=probe-cargo"])
+        .current_dir(env!("CARGO_MANIFEST_DIR"))
+        .output()?;
+    if !output.status.success() {
+        return Err(io::Error::other(format!(
+            "make --dry-run {target} CARGO=probe-cargo exited with {:?}; stderr: {}",
+            output.status,
+            String::from_utf8_lossy(&output.stderr)
+        )));
+    }
+    Ok(String::from_utf8_lossy(&output.stdout).into_owned())
+}
+
+/// Asserts that every needle in `needles` appears in `haystack`, each one
+/// after the position where the previous needle was found. Used to confirm
+/// a dry-run's `$(CARGO)` substitution lands before the fixed
+/// `--config`/dev-fast wiring, not merely somewhere in the output.
+fn assert_ordered_substrings(haystack: &str, needles: &[&str], target: &str) {
+    let mut cursor = 0usize;
+    for needle in needles {
+        let remainder = haystack.get(cursor..).unwrap_or_default();
+        let Some(relative) = remainder.find(needle) else {
+            panic!(
+                "`{target}` dry-run output does not contain `{needle}` after position {cursor}: \
+                 {haystack}"
+            );
+        };
+        cursor += relative + needle.len();
+    }
+}
+
+// dev-build/dev-test are Wave 1-owned; this proves $(CARGO) substitution
+// works there too, without needing the nightly toolchain or mold installed
+// (--dry-run never executes the recipe).
+#[rstest]
+#[case::dev_build("dev-build")]
+#[case::dev_test("dev-test")]
+fn dev_fast_targets_substitute_cargo(#[case] target: &str) {
+    let output = make_dry_run(target).expect("failed to dry-run make dev-build/dev-test");
+    assert_ordered_substrings(&output, &["probe-cargo", "--config", "dev-fast"], target);
 }
 
 #[test]
