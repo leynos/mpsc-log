@@ -52,3 +52,25 @@ advisories that affect unused or tooling-only dependency paths. Keep each
 ignore tied to a documented runtime impact analysis, and remove it when the
 affected dependency leaves the graph or the project starts using the advised
 runtime path.
+
+## Lint baseline
+
+`Cargo.toml` carries the estate's phase 2 lint baseline directly under
+`[lints.clippy]`, `[lints.rust]`, and `[lints.rustdoc]`; mpsc-log is a single
+crate with no `[workspace]` table, so there is no separate
+`[workspace.lints]` table to inherit from. `Cargo.toml` is the authoritative
+list — consult it rather than this guide when checking whether a specific
+lint is enabled or at what level.
+
+Treat every denied lint as a real constraint. Where a violation is a genuine,
+scheduled deferral rather than something to fix immediately, annotate the
+site with `#[expect(clippy::<lint>, reason = "...")]`, never `allow`: an
+`expect` that goes unfulfilled once the site is fixed becomes a compiler
+warning, so the deferral backlog removes itself instead of rotting silently.
+
+`clippy.toml` sets the complexity and nesting thresholds and the
+`disallowed-methods` list that forbids calling `std::env::var`,
+`std::env::var_os`, `std::env::set_var`, and similar functions directly;
+inject an environment reader instead, so tests can stub it. The pinned
+nightly toolchain (`rust-toolchain.toml`) supplies the `rustfmt`, `clippy`,
+and `rust-analyzer` components the baseline and this workflow depend on.
