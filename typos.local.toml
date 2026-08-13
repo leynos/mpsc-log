@@ -15,6 +15,15 @@ accepted = []
 ignore = [
     "\\bAzure Architecture\\s+Center \\| Microsoft Learn\\b",
     "\\bGitHub Flavored\\s+Markdown\\b",
+    # Inline code spans quote identifiers verbatim, so they are not en-GB
+    # prose; the shared base previously supplied this exemption, so this
+    # restores it locally.
+    "`[^`\\n]+`",
+    # `mold` names the Rust linker tool (github.com/rui314/mold), not a
+    # misspelling of the en-GB "mould"; some mentions predate consistent
+    # backtick styling, including one inside the byte-identical Wave 1
+    # AGENTS.md block, which this branch does not edit.
+    "\\bmold\\b",
 ]
 
 [files]
