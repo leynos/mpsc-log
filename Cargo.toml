@@ -12,6 +12,10 @@ categories = []
 
 [dependencies]
 
+[dev-dependencies]
+cap-std = "4.0.2"
+rstest = "0.26.1"
+
 # The package.metadata.binstall pkg-url intentionally mixes Jinja2 values
 # rendered at project generation with single-brace cargo-binstall variables
 # substituted at install time.
