@@ -76,6 +76,17 @@ fn effective_build_recipe(makefile: &str) -> String {
     }
 }
 
+/// Selects the lines within a recipe that actually invoke cargo, so a
+/// target with several commands (for example `test`'s nextest run and doc
+/// test lines) cannot mask a stripped `--config` on one line behind a
+/// surviving flag on another.
+fn cargo_invocation_lines(recipe: &str) -> Vec<&str> {
+    recipe
+        .lines()
+        .filter(|line| line.contains("$(CARGO)"))
+        .collect()
+}
+
 // `test_target`, not `test`: rstest 0.26 silently drops the entire case
 // list when a case is named `test`, so the label avoids the collision.
 #[rstest]
@@ -91,17 +102,26 @@ fn standard_targets_use_dev_fast(#[case] target: &str) {
         recipe_for(&makefile, target)
     };
 
+    let cargo_lines = cargo_invocation_lines(&recipe);
     assert!(
-        recipe.contains("--config"),
-        "`{target}`'s recipe must pass --config so cargo picks up the dev-fast fragment; see \
-         AGENTS.md, \"dev-fast is the standard development path\""
+        !cargo_lines.is_empty(),
+        "`{target}`'s recipe has no $(CARGO) invocation to check; update this contract test if \
+         the recipe changed shape"
     );
-    let recipe_lower = recipe.to_lowercase();
-    assert!(
-        recipe_lower.contains("dev-fast") || recipe_lower.contains("dev_fast"),
-        "`{target}`'s recipe must reference tools/dev-fast/config.toml (directly or via \
-         $(DEV_FAST_CONFIG)); see AGENTS.md, \"dev-fast is the standard development path\""
-    );
+    for cargo_line in cargo_lines {
+        assert!(
+            cargo_line.contains("--config"),
+            "`{target}`'s cargo invocation `{cargo_line}` must pass --config so cargo picks up \
+             the dev-fast fragment; see AGENTS.md, \"dev-fast is the standard development path\""
+        );
+        let cargo_line_lower = cargo_line.to_lowercase();
+        assert!(
+            cargo_line_lower.contains("dev-fast") || cargo_line_lower.contains("dev_fast"),
+            "`{target}`'s cargo invocation `{cargo_line}` must reference \
+             tools/dev-fast/config.toml (directly or via $(DEV_FAST_CONFIG)); see AGENTS.md, \
+             \"dev-fast is the standard development path\""
+        );
+    }
 }
 
 #[test]
