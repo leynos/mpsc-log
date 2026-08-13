@@ -56,8 +56,8 @@ jobs:
           key: cross-${{ env.CROSS_REVISION }}
       - name: Install cross
         env:
-          # Clear repository build flags from .cargo/config.toml (mold linker
-          # and Cranelift codegen-backend) before installing cross from CROSS_REVISION.
+          # Clear the repository's mold linker flag from .cargo/config.toml
+          # before installing cross from CROSS_REVISION.
           RUSTFLAGS: ""
         run: |
           if [ -x "$HOME/.cargo/bin/cross" ]; then
@@ -74,11 +74,11 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-cargo-${{ matrix.target }}-
       - name: Build release binary
-        # Use +stable to override rust-toolchain.toml (which specifies nightly
-        # with Cranelift for development) and ensure release builds use stable.
+        # Use +stable to override rust-toolchain.toml's nightly pin and
+        # ensure release builds use stable.
         env:
           # Build release artifacts without repository-local linker flags,
-          # including mold rustflags from .cargo/config.toml.
+          # including the mold rustflags from .cargo/config.toml.
           RUSTFLAGS: ""
         run: cross +stable build --release --target ${{ matrix.target }}
       - name: Prepare artifact
