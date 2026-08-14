@@ -1,3 +1,10 @@
+# Canonical rustfmt configuration for the estate. In a consuming
+# repository this file lives at the root as `.rustfmt.toml`; keep it
+# there, aligned with canon (the rust-rustfmt-baseline rule FMT-001
+# compares the parsed keys).
+#
+# `unstable_features = true` means rustfmt must run on the nightly channel;
+# the rust-rustfmt-baseline rule (FMT-002) checks for that evidence.
 unstable_features = true
 comment_width = 100
 format_code_in_doc_comments = true

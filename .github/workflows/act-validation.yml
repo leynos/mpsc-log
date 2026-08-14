@@ -25,5 +25,14 @@ jobs:
             sudo tar -xz -C /usr/local/bin act
       - name: Check Docker runtime
         run: docker info
+      - name: Install mold linker
+        if: runner.os == 'Linux'
+        run: |
+          set -euo pipefail
+          export DEBIAN_FRONTEND=noninteractive
+          # make test now routes through tools/dev-fast/config.toml, which
+          # links debug test binaries with mold.
+          sudo apt-get update \
+            && sudo apt-get install --yes --no-install-recommends clang lld mold
       - name: Run tests with act validation
         run: make test WITH_ACT=1

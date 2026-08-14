@@ -15,6 +15,19 @@ accepted = []
 ignore = [
     "\\bAzure Architecture\\s+Center \\| Microsoft Learn\\b",
     "\\bGitHub Flavored\\s+Markdown\\b",
+    # Inline code spans quote identifiers verbatim, so they are not en-GB
+    # prose; the shared base previously supplied this exemption, so this
+    # restores it locally.
+    "`[^`\\n]+`",
+    # `mold` names the Rust linker tool (github.com/rui314/mold), not a
+    # misspelling of the en-GB "mould". Scoped to the estate's known
+    # phrasings rather than a bare word-boundary match, so unrelated prose
+    # (e.g. "the bread had mold growing on it") still gets flagged.
+    "-fuse-ld=mold",
+    "mold linker",
+    "Cranelift \\+ mold",
+    "Cranelift and mold",
+    "`mold`",
 ]
 
 [files]
