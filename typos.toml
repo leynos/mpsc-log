@@ -30,16 +30,16 @@ extend-exclude = [
 [default]
 locale = "en-gb"
 extend-ignore-re = [
+    "(?s)```.*?```",
     "-fuse-ld=mold",
-    "mold linker",
     "Cranelift \\+ mold",
     "Cranelift and mold",
-    "`mold`",
-    "(?s)```.*?```",
     "\\bAzure Architecture\\s+Center \\| Microsoft Learn\\b",
     "\\bGitHub Flavored\\s+Markdown\\b",
     "\\brust-analyzer\\b",
     "`[^`\\n]+`",
+    "`mold`",
+    "mold linker",
 ]
 
 [default.extend-words]
