@@ -358,9 +358,17 @@ mpsc-log-design.md §§2, 8, 11 and terms-of-reference.md §§6-7.
   - See mpsc-log-design.md §§6, 8.
   - Success: files beyond `plain_generations + compressed_generations` are
     deleted only after newer retained files are safely in place.
-  - Success: the evicted oldest generation is staged aside rather than deleted,
-    is unlinked only after the append commits, and a staged eviction left by a
-    killed process is reclaimed by the next invocation under the journal lock.
+  - Success: the evicted oldest generation and every superseded source
+    generation are staged aside rather than unlinked, and are removed only at
+    the commit point after the append.
+  - [ ] Fault-inject a failure at each rotation commit point: a partial rename
+    sequence, an uncommitted and a committed gzip output, staged source
+    removal, a failed append, and a process killed mid-rotation.
+  - Success: after every injected fault the journal settles into either the
+    pre-rotation or the post-rotation layout and never a mixture, no
+    record-bearing generation is lost, and the next invocation under the
+    journal lock completes or reverses the recorded plan and clears the
+    manifest before handling its own record.
 
 ### 4.3. Deliver UTC scheduled rotation with size splits
 

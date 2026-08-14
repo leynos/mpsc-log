@@ -299,38 +299,61 @@ failed invocation leaves the previous journal readable.
 One zero count is valid because `P + C` is still at least one. When `P` is
 zero, no plain archives exist and the active file is gzipped straight into
 generation `1`. When `C` is zero, no archive is compressed and the oldest plain
-generation is deleted rather than gzipped.
+generation is evicted rather than gzipped.
 
-The size-only rotation order is oldest-to-newest. No record-bearing file is
-unlinked until the invocation commits:
+Size-only rotation is a prepare phase followed by a commit point. The prepare
+phase only creates files and renames them within the journal directory, so
+every source generation stays on disk and recoverable until the rotation
+commits. Superseded sources are renamed aside to staging names rather than
+unlinked; staging names and the manifest below are reserved names derived from
+the journal filename, alongside the `.lock` name from ADR 001.
+
+Before touching any file, the invocation writes a rotation manifest recording
+the planned layout transition. The manifest is written through
+`atomic-write-file` in the journal directory and is removed at the commit
+point, so its presence means a rotation was interrupted.
+
+Steps 1 to 5 prepare the new layout, oldest-to-newest; steps 6 and 7 commit it:
 
 1. Stage the eviction. If generation `P + C` exists, rename it aside to a
-   reserved staging name in the same directory rather than deleting it. The
-   staging name shares the journal directory so the rename stays within one
-   filesystem and is therefore atomic.
+   staging name. Staging names share the journal directory, so every rename
+   stays within one filesystem and is atomic.
 2. Rename each compressed generation `i` from `P + C - 1` down to `P + 1` into
    generation `i + 1`.
-3. Gzip plain generation `P` into generation `P + 1`, removing generation `P`
-   only after the gzip output is committed. Skip this step when `C` is zero
-   (generation `P` is the staged eviction) or when `P` is zero (the active file
-   is compressed in step 5 instead).
+3. Gzip plain generation `P` into generation `P + 1`, then rename generation
+   `P` aside to a staging name rather than unlinking it. Skip this step when
+   `C` is zero (generation `P` is already the staged eviction) or when `P` is
+   zero (the active file is compressed in step 5 instead).
 4. Rename each plain generation `i` from `P - 1` down to `1` into generation
    `i + 1`.
 5. Move the active file into generation `1`. When `P` is at least one this is a
    rename, which is atomic on a supported local filesystem. When `P` is zero,
-   gzip the active file into generation `1` instead, and remove the active file
-   only after that gzip output is committed.
+   gzip the active file into generation `1` and then rename the active file
+   aside to a staging name.
 6. Create a fresh active file by appending the pending record.
-7. Commit the rotation by unlinking the staged eviction, once the append has
-   succeeded.
+7. Unlink the staged files, then remove the manifest.
 
-Steps 1 to 5 are atomic renames and `atomic-write-file` commits, so a failure in
-any of them aborts the invocation before the append and unwinds the renames it
-has already made, in reverse order, back to the prior generation layout. A
-failure in step 6 leaves the previous contents readable in generation `1`.
-Because the eviction is unlinked only in step 7, no failure path deletes a
-record-bearing file. A process killed mid-rotation can leave a staged eviction
-file behind; the next invocation reclaims it while holding the journal lock.
+Every prepare step is idempotent: it is applied only when its source exists and
+its target does not, so replaying the manifest can neither duplicate nor skip a
+generation. Because nothing is unlinked before step 7, the prepare phase is
+also reversible by renaming each staged or shifted file back.
+
+Rotation therefore settles into either the pre-rotation or the post-rotation
+layout, never a mixture of the two:
+
+- An error during prepare reverses the renames already applied, discards any
+  uncommitted gzip temporary, removes the manifest, and aborts before the
+  append, leaving the pre-rotation layout intact.
+- An error during the append in step 6 leaves the rotated layout in place with
+  the previous contents readable in generation `1`. The invocation still
+  performs step 7 before reporting the append failure, because the rotation
+  itself completed.
+- A process killed at any point leaves the manifest behind. The next
+  invocation acquires the journal lock, finds the manifest, and drives the
+  recorded plan to a settled state before evaluating its own rotation: it
+  completes the outstanding prepare steps and commits when the plan can still
+  be completed, and otherwise reverses the applied renames and removes the
+  manifest. Only then does it handle its own record.
 
 When `schedule` is `hourly`, `daily`, or `weekly`, the command uses UTC period
 boundaries derived from the invocation timestamp:
