@@ -401,7 +401,7 @@ into `.cargo/config.toml`, which Cargo applies to every build.
 The standard `make build`, `make test`, `make lint`, and `make typecheck`
 targets already pass `--config tools/dev-fast/config.toml` to every cargo
 invocation they make, so ordinary development work gets the Cranelift and
-mold speed-up automatically; there is nothing extra to opt into. An agent
+`mold` speed-up automatically; there is nothing extra to opt into. An agent
 or human who calls `cargo build`, `cargo test`, `cargo clippy`, or
 `cargo check` directly for a development build, test, lint, or typecheck
 run must pass `--config tools/dev-fast/config.toml` too, or the invocation

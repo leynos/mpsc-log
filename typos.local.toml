@@ -20,10 +20,14 @@ ignore = [
     # restores it locally.
     "`[^`\\n]+`",
     # `mold` names the Rust linker tool (github.com/rui314/mold), not a
-    # misspelling of the en-GB "mould"; some mentions predate consistent
-    # backtick styling, including one inside the byte-identical Wave 1
-    # AGENTS.md block, which this branch does not edit.
-    "\\bmold\\b",
+    # misspelling of the en-GB "mould". Scoped to the estate's known
+    # phrasings rather than a bare word-boundary match, so unrelated prose
+    # (e.g. "the bread had mold growing on it") still gets flagged.
+    "-fuse-ld=mold",
+    "mold linker",
+    "Cranelift \\+ mold",
+    "Cranelift and mold",
+    "`mold`",
 ]
 
 [files]
