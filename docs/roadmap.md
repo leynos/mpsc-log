@@ -247,11 +247,19 @@ critical-section protocol and timeout behaviour. See mpsc-log-design.md §§4, 7
     failures return `EX_TEMPFAIL`. Network-filesystem support (NFS and CIFS)
     remains deferred until the named filesystem verification matrix in step
     6.2.1.
+  - Success: the single lock acquisition attempt uses a five-second default
+    timeout, which an unlocked advisory pre-read of `[locking] timeout_ms`
+    may override; an absent, unreadable, or invalid pre-read falls back to
+    five seconds without failing the invocation; and no second acquisition
+    attempt is made.
 - [ ] 3.1.3. Read sidecar configuration inside the journal critical section.
   - Requires 3.1.2.
   - See mpsc-log-design.md §§4, 6-7 and terms-of-reference.md §8.2.
   - Success: each invocation uses one coherent sidecar view for repair,
     rotation, compression, and append.
+  - Success: the advisory pre-read is used only to choose the lock timeout
+    and never supplies repair, rotation, coercion, or default values, which
+    come solely from the authoritative read taken under the lock.
 
 ### 3.2. Preserve complete records across write and crash-like failures
 
@@ -266,6 +274,10 @@ and validates the design's append-plus-repair claim. See mpsc-log-design.md
   - See mpsc-log-design.md §§7, 10-11.
   - Success: injected write failures truncate the active file back to its
     recorded pre-append length before returning an error.
+  - Success: rollback also covers flush and filesystem metadata failures
+    after bytes reach the file, all of which map to `EX_IOERR`; a failed
+    rollback truncate still returns `EX_IOERR` and leaves the unterminated
+    tail for the next invocation's partial-tail repair.
 - [ ] 3.2.2. Implement partial-tail repair before every append.
   - Requires 3.2.1.
   - See mpsc-log-design.md §§6-7, 11.
@@ -279,6 +291,13 @@ and validates the design's append-plus-repair claim. See mpsc-log-design.md
   - Success: each documented filesystem failure class has a deterministic
     assertion for journal state and exit-code mapping, including the invalid
     newline-terminated final-line case.
+  - [ ] Fault-inject a flush failure and a filesystem metadata failure after
+    bytes have reached the active file, plus a failed rollback truncate.
+  - Success: no injected post-write failure leaves a committed record, a
+    retry after `EX_IOERR` does not duplicate a committed record, and a
+    complete record left by a process killed after the write is repaired or
+    retained per the documented at-least-once behaviour rather than silently
+    duplicated.
 
 ### 3.3. Demonstrate concurrent append correctness end to end
 
