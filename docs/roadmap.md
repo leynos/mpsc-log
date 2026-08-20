@@ -275,9 +275,10 @@ and validates the design's append-plus-repair claim. See mpsc-log-design.md
   - Success: injected write failures truncate the active file back to its
     recorded pre-append length before returning an error.
   - Success: rollback also covers flush and filesystem metadata failures
-    after bytes reach the file, all of which map to `EX_IOERR`; a failed
-    rollback truncate still returns `EX_IOERR` and leaves the unterminated
-    tail for the next invocation's partial-tail repair.
+    after bytes reach the file, all of which map to `EX_IOERR`; a successful
+    rollback leaves the record uncommitted; and a failed rollback truncate
+    still returns `EX_IOERR` while leaving the commit status unknown for the
+    next invocation to classify.
 - [ ] 3.2.2. Implement partial-tail repair before every append.
   - Requires 3.2.1.
   - See mpsc-log-design.md §§6-7, 11.
@@ -293,11 +294,12 @@ and validates the design's append-plus-repair claim. See mpsc-log-design.md
     newline-terminated final-line case.
   - [ ] Fault-inject a flush failure and a filesystem metadata failure after
     bytes have reached the active file, plus a failed rollback truncate.
-  - Success: no injected post-write failure leaves a committed record, a
-    retry after `EX_IOERR` does not duplicate a committed record, and a
-    complete record left by a process killed after the write is repaired or
-    retained per the documented at-least-once behaviour rather than silently
-    duplicated.
+  - Success: a successful rollback leaves no committed record; a failed
+    rollback truncate leaves either an unterminated tail that repair removes
+    or a complete record that repair preserves; and a retry after `EX_IOERR`
+    may duplicate a preserved record. The tests assert that duplication as
+    the documented at-least-once outcome rather than treating it as a
+    defect, because `mpsc-log` keeps no unknown-commit reconciliation state.
 
 ### 3.3. Demonstrate concurrent append correctness end to end
 
