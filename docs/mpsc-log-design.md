@@ -106,6 +106,9 @@ atomic-output integration, dependency risk, and portability.[^gzp] [^gzippy]
 - `mpsc-log` does not provide distributed locking across hosts.
 - `mpsc-log` does not preserve textual duplicate JSON object keys.
 - `mpsc-log` does not guarantee chronological record order by `timestamp`.
+- `mpsc-log` is `jo`-inspired rather than `jo` compatible: it omits `jo`
+  formatting, pretty-printing, array-root, and version options; see
+  section 5 and [ADR 003](adr-003-jo-field-syntax-and-duplicate-keys.md).
 
 ## 4. Architecture
 
@@ -138,6 +141,17 @@ would equal the journal path. Every invocation creates parent directories
 first, opens the lock file with create semantics, acquires an exclusive lock,
 and only then reads configuration, repairs the journal tail, rotates,
 compresses, and appends.
+
+The lock timeout is the one setting that cannot come from the locked
+configuration read, because the lock must already be held to read
+configuration authoritatively. The single acquisition attempt uses a
+five-second default, which an unlocked advisory pre-read of the sidecar's
+`[locking] timeout_ms` may override. That pre-read is advisory only: it
+selects how long this invocation waits for the lock and never feeds repair,
+rotation, coercion, or defaults. A missing, unreadable, or invalid pre-read
+falls back to five seconds without failing the invocation. Once the lock is
+held, the authoritative configuration read supplies one coherent view for
+everything else. There is no second acquisition attempt.
 
 ## 5. CLI contract
 
@@ -185,7 +199,7 @@ has four tables:
 | Table        | Responsibility                                                                                      |
 | ------------ | --------------------------------------------------------------------------------------------------- |
 | `[rotation]` | `schedule`, `max_bytes`, plain generation count, compressed generation count, and gzip policy.      |
-| `[locking]`  | Lock timeout and partial-tail repair mode.                                                          |
+| `[locking]`  | Lock timeout, read by an unlocked advisory pre-read, and partial-tail repair mode.                  |
 | `[defaults]` | Default JSON fields inserted before CLI fields.                                                     |
 | `[schema]`   | Object paths mapped to coercion names: `string`, `integer`, `number`, `boolean`, `json`, or `null`. |
 
@@ -221,7 +235,7 @@ sequenceDiagram
     A->>M: mpsc-log path fields...
     M->>M: create parent directories
     M->>L: open or create lock file
-    M->>L: acquire exclusive lock with timeout
+    M->>L: acquire exclusive lock with pre-read or default timeout
     M->>J: validate final record and repair partial tail
     M->>R: rotate and compress if threshold or schedule requires it
     M->>J: append record plus newline
@@ -247,6 +261,23 @@ classifies the active file tail while holding the journal lock:
   valid JSON object unless the file has no lines. If the complete final line is
   invalid JSON, not an object, or empty, the invocation fails closed with
   `EX_DATAERR` and leaves the file unchanged.
+
+A record is committed once its bytes and terminating newline are written
+and flushed; before that point it is uncommitted. The writer restores the
+recorded pre-append length on any in-process failure after bytes reach the
+file, including flush and filesystem metadata failures, and all of these
+failures map to `EX_IOERR`. If the rollback truncate itself fails, the
+invocation still returns `EX_IOERR` and leaves the unterminated tail for
+the next invocation's partial-tail repair; this is why repair classifies
+the tail rather than trusting the previous writer.
+
+Because a failed invocation commits nothing, a caller retrying after
+`EX_IOERR` cannot duplicate a committed record: the previous attempt either
+committed and returned success, or committed nothing. One caveat remains: a
+process killed between the write and the exit can leave a complete record
+the caller never saw acknowledged, so a retry then appends a second copy.
+`mpsc-log` is therefore at-least-once under process death, and callers
+needing deduplication should carry their own idempotency key in the record.
 
 The repair path does not quarantine files and does not truncate a
 newline-terminated corrupt record by default. It also does not scan every
@@ -300,6 +331,14 @@ One zero count is valid because `P + C` is still at least one. When `P` is
 zero, no plain archives exist and the active file is gzipped straight into
 generation `1`. When `C` is zero, no archive is compressed and the oldest plain
 generation is evicted rather than gzipped.
+
+Rotation is evaluated after tail repair and before the append. The
+invocation compares the repaired active file length plus the length of the
+serialized pending record, including its terminating newline, against
+`max_bytes`. It rotates only when the active file is non-empty and that
+combined length exceeds `max_bytes`. When the active file is empty, the
+pending record is appended directly, so an oversized record never rotates
+an empty active file into an archive.
 
 Size-only rotation is a prepare phase followed by a commit point. The prepare
 phase only creates files and renames them within the journal directory, so

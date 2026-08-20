@@ -12,10 +12,10 @@ same directory.
 
 ## Context and problem statement
 
-`mpsc-log` serializes repair, sidecar reads, rotation, compression, and append
-through one advisory lock per journal. Every safety claim in the design depends
-on all cooperating invocations choosing the same lock for the same journal and
-choosing different locks for different journals.
+`mpsc-log` serializes repair, the authoritative sidecar read, rotation,
+compression, and append through one advisory lock per journal. Every safety
+claim in the design depends on all cooperating invocations choosing the same
+lock for the same journal and choosing different locks for different journals.
 
 The obvious rule, `<journal filename>.lock` in the same directory, is simple
 but needs collision boundaries. Names such as `run`, `run.jsonl`,
@@ -60,9 +60,12 @@ can safely create under contention.
 ### Technical requirements
 
 - Create parent directories before opening the lock file.
-- Open the lock file with create semantics and acquire the exclusive lock before
-  reading sidecar configuration, repairing tails, rotating, compressing, or
-  appending.
+- Open the lock file with create semantics and acquire the exclusive lock
+  before the authoritative sidecar configuration read, repairing tails,
+  rotating, compressing, or appending.
+- Permit an unlocked, advisory pre-read of the sidecar `timeout_ms` value
+  solely to choose the lock-acquisition timeout; it never substitutes for
+  the authoritative read.
 - Treat `.lock` journal paths as invalid because `.lock` is reserved for
   coordination artefacts.
 - Treat `.toml` journal paths as invalid when the derived sidecar path would be
@@ -176,8 +179,9 @@ configuration must choose distinct stems or directories, such as
    - Reject paths whose derived sidecar path equals the journal path.
 2. Implement lock-path derivation as a pure function and test the examples in
    Table 1.
-3. Use the derived lock path for the complete critical section: sidecar read,
-   tail repair, rotation, compression, and append.
+3. Use the derived lock path for the complete critical section: the
+   authoritative sidecar read, tail repair, rotation, compression, and
+   append.
 4. Document reserved suffixes and sidecar sharing in the users' guide when the
    CLI implementation lands.
 
