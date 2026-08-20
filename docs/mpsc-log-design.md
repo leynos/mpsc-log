@@ -266,18 +266,24 @@ A record is committed once its bytes and terminating newline are written
 and flushed; before that point it is uncommitted. The writer restores the
 recorded pre-append length on any in-process failure after bytes reach the
 file, including flush and filesystem metadata failures, and all of these
-failures map to `EX_IOERR`. If the rollback truncate itself fails, the
-invocation still returns `EX_IOERR` and leaves the unterminated tail for
-the next invocation's partial-tail repair; this is why repair classifies
-the tail rather than trusting the previous writer.
+failures map to `EX_IOERR`. A successful rollback leaves the record
+uncommitted, so a later retry cannot duplicate it.
 
-Because a failed invocation commits nothing, a caller retrying after
-`EX_IOERR` cannot duplicate a committed record: the previous attempt either
-committed and returned success, or committed nothing. One caveat remains: a
-process killed between the write and the exit can leave a complete record
-the caller never saw acknowledged, so a retry then appends a second copy.
-`mpsc-log` is therefore at-least-once under process death, and callers
-needing deduplication should carry their own idempotency key in the record.
+A failed rollback truncate leaves the commit status unknown. The written
+bytes stay on disk, and which repair rule applies depends on how far the
+write got: an unterminated tail is removed by partial-tail repair, whereas
+a complete newline-terminated record is preserved by the rule above and is
+therefore committed. The invocation returns `EX_IOERR` without knowing
+which case occurred, which is why repair classifies the tail rather than
+trusting the previous writer.
+
+`mpsc-log` is therefore at-least-once whenever the writer cannot confirm
+the outcome. A retry after `EX_IOERR` can duplicate a record that a failed
+rollback truncate left complete, and a process killed between the write and
+the exit can leave a complete record the caller never saw acknowledged.
+`mpsc-log` keeps no unknown-commit reconciliation state, so callers needing
+exactly-once semantics must carry their own idempotency key in the record
+and deduplicate when reading.
 
 The repair path does not quarantine files and does not truncate a
 newline-terminated corrupt record by default. It also does not scan every
