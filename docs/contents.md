@@ -5,6 +5,14 @@ set.
 
 ## Project guides
 
+- [Context](context.md) defines the project vocabulary for journals,
+  sidecars, rotation, and df12-build telemetry.
+- [Design](mpsc-log-design.md) specifies the CLI, file formats, locking,
+  rotation, failure handling, and verification strategy for `mpsc-log`.
+- [Terms of reference](terms-of-reference.md) defines the product problem,
+  users, scope boundaries, constraints, and open questions for `mpsc-log`.
+- [Roadmap](roadmap.md) translates the design and terms of reference into
+  review-sized implementation tasks.
 - [User guide](users-guide.md) explains how to use the generated project and
   its public build and test commands.
 - [Developer guide](developers-guide.md) explains the local workflow and
@@ -33,3 +41,18 @@ set.
 - [Scripting standards](scripting-standards.md) explains the preferred Python
   scripting stack, command execution patterns, and test expectations for helper
   scripts.
+
+## Design artefacts
+
+- [ADR 001: Lock file naming](adr-001-lock-file-naming.md) records how the
+  journal lock path is derived and which coordination/configuration suffixes
+  are reserved.
+- [ADR 002: Testing strategy](adr-002-testing-strategy.md) records how the
+  repository's required testing prongs apply to the `mpsc-log` design.
+- [ADR 003: `jo` field syntax and duplicate keys](adr-003-jo-field-syntax-and-duplicate-keys.md)
+  records the selected `jo`-inspired field syntax and last-wins duplicate-path
+  semantics.
+- [mpsc-log event schema](mpsc-log-event-schema.json) defines the initial JSON
+  Schema for journal records.
+- [mpsc-log sidecar example](mpsc-log-sidecar.example.toml) shows the TOML
+  configuration shape used by the design.

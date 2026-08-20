@@ -1,0 +1,30 @@
+[rotation]
+schedule = "none"
+max_bytes = 1048576
+plain_generations = 4
+compressed_generations = 32
+gzip_after_plain_generations = true
+
+[locking]
+timeout_ms = 5000
+# Repairs only unterminated final bytes; newline-terminated corrupt records
+# fail closed with EX_DATAERR.
+repair_partial_tail = true
+
+[defaults]
+schema_version = 1
+event = "workflow.event"
+
+[schema]
+"run.id" = "string"
+"run.workflow" = "string"
+"task.work_items" = "integer"
+"task.changed_files" = "integer"
+"task.dependency_depth" = "integer"
+"attempt.round" = "integer"
+"attempt.duration_ms" = "integer"
+"coderabbit.http_status" = "integer"
+"coderabbit.wait_ms" = "integer"
+"coderabbit.retry" = "boolean"
+"coderabbit.deferred" = "boolean"
+"audit.finding_count" = "integer"
