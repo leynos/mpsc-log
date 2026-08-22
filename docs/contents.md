@@ -15,7 +15,8 @@ set.
   review-sized implementation tasks.
 - [User guide](users-guide.md) explains how to use the generated project and
   its public build and test commands.
-- [Developer guide](developers-guide.md) explains the local workflow and
+- [Developer guide](developers-guide.md) explains the planned implementation
+  architecture, module layering, adapter boundary, local workflow, and
   implementation tooling for contributors.
 - [Repository layout](repository-layout.md) explains the generated project's
   top-level files, directories, and ownership boundaries.

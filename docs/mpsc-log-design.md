@@ -39,7 +39,7 @@ The CLI field grammar is `jo`-inspired and uses selected `jo` field syntax
 where that serves object-record logging. `jo` supports `key=value`,
 `key@value`, type coercion flags, object paths, file-value prefixes, array
 construction, and duplicate object keys.[^jo] `mpsc-log` rejects array roots
-and serializes through `serde_json`, so duplicate paths resolve by last write
+and builds an object-map `Record`, so duplicate paths resolve by last write
 rather than producing repeated textual JSON object names. That compatibility
 boundary is recorded in
 [ADR 003: `jo` field syntax and duplicate keys](adr-003-jo-field-syntax-and-duplicate-keys.md).
@@ -64,7 +64,7 @@ The Rust implementation baseline is conservative:
 | Need        | Choice                         | Reason                                                                                            |
 | ----------- | ------------------------------ | ------------------------------------------------------------------------------------------------- |
 | CLI parsing | `clap` builder API             | Handles help/version/error rendering while allowing raw selected `jo` field tails.[^clap]         |
-| JSON        | `serde`, `serde_json`          | Standard Rust serialization stack; object maps naturally enforce last-wins duplicate handling.    |
+| JSON        | `serde`, `serde_json`          | Standard Rust serialization stack, used by the JSON output adapter rather than by domain modules. |
 | TOML        | `toml` crate, TOML v1.0 subset | Current crate supports TOML parsing; the product contract remains v1.0.                           |
 | Time        | `jiff`                         | Provides `Timestamp::now()` and RFC 3339-style instant formatting with nanosecond support.[^jiff] |
 | Locking     | `fs4` sync feature             | Provides cross-platform file locks without requiring a daemon.[^fs4]                              |
@@ -107,16 +107,17 @@ atomic-output integration, dependency risk, and portability.[^gzp] [^gzippy]
 - `mpsc-log` does not preserve textual duplicate JSON object keys.
 - `mpsc-log` does not guarantee chronological record order by `timestamp`.
 - `mpsc-log` is `jo`-inspired rather than `jo` compatible: it omits `jo`
-  formatting, pretty-printing, array-root, and version options; see
-  section 5 and [ADR 003](adr-003-jo-field-syntax-and-duplicate-keys.md).
+  formatting, pretty-printing, array-root, and version options; see section 5
+  and [ADR 003](adr-003-jo-field-syntax-and-duplicate-keys.md).
 
 ## 4. Architecture
 
-The design is a synchronous CLI with a small domain core and filesystem
-adapter. The core parses fields, merges configuration, produces a
-`serde_json::Map`, and computes rotation actions. The adapter owns directory
-creation, sidecar reads, lock acquisition, append, truncate repair, rename, and
-gzip compression.
+The design is a synchronous CLI with a small domain core surrounded by
+adapters. The domain interprets field words, merges configuration, builds a
+`Record`, and computes rotation actions. It reaches every external effect
+through a port. Adapters own directory creation, sidecar reads, lock
+acquisition, append, truncate repair, rename, gzip compression, and the
+translation between external formats and domain types.
 
 ```mermaid
 flowchart LR
@@ -143,15 +144,80 @@ and only then reads configuration, repairs the journal tail, rotates,
 compresses, and appends.
 
 The lock timeout is the one setting that cannot come from the locked
-configuration read, because the lock must already be held to read
-configuration authoritatively. The single acquisition attempt uses a
-five-second default, which an unlocked advisory pre-read of the sidecar's
-`[locking] timeout_ms` may override. That pre-read is advisory only: it
-selects how long this invocation waits for the lock and never feeds repair,
-rotation, coercion, or defaults. A missing, unreadable, or invalid pre-read
-falls back to five seconds without failing the invocation. Once the lock is
-held, the authoritative configuration read supplies one coherent view for
-everything else. There is no second acquisition attempt.
+configuration read, because the lock must already be held to read configuration
+authoritatively. The single acquisition attempt uses a five-second default,
+which an unlocked advisory pre-read of the sidecar's `[locking] timeout_ms` may
+override. That pre-read is advisory only: it selects how long this invocation
+waits for the lock and never feeds repair, rotation, coercion, or defaults. A
+missing, unreadable, or invalid pre-read falls back to five seconds without
+failing the invocation. Once the lock is held, the authoritative configuration
+read supplies one coherent view for everything else. There is no second
+acquisition attempt.
+
+### 4.1 Domain record model
+
+The domain owns its record types so that no domain module depends on a
+serialization crate. Two types carry every journal entry:
+
+- `Value` is the domain value tree, with null, boolean, integer, float,
+  string, array, and object variants. The object variant is a map from key to
+  `Value`.
+- `Record` is the root of one entry. It is always an object map from key to
+  `Value`, so a record can never serialize as an array or a bare scalar.
+
+The domain defines this behaviour over those types:
+
+- Object paths. A path is the sequence of key segments produced by splitting
+  a field key on the configured delimiter. Writing a path creates any missing
+  intermediate objects.
+- Nested objects. Writing `task.id` creates `task` as an object variant and
+  sets `id` within it. Writing through a segment whose existing value is not an
+  object replaces that value with a new object.
+- Arrays. The `key[]` form appends to an array at that path, creating an
+  empty array first when the path is unset.
+- Scalars. Null, boolean, integer, float, and string values are stored as the
+  matching `Value` variant rather than as text.
+- Coercion results. Coercion is a domain policy mapping one raw field word
+  and its coercion source to one `Value`. Explicit `-s`, `-n`, and `-b` flags
+  win, then the matching `[schema]` entry, then default `jo`-inspired inference.
+- Last-wins replacement. Writing a path that already holds a value replaces
+  that value. Ordering follows section 6, so sidecar defaults seed the record
+  and each later CLI write wins at its path. A `Record` therefore holds one
+  value per path and never repeats a key.
+
+### 4.2 Ports
+
+The domain reaches external effects only through ports. A port is a trait
+declared by the domain in domain terms; an adapter implements it with a
+concrete API.
+
+| Port           | Responsibility                                                                                                                                                                                                                        |
+| -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `Clock`        | Supply the invocation instant used for the generated `timestamp` field, so tests can fix time without mutating process state.                                                                                                         |
+| `JournalStore` | Perform every journal-directory effect: create parent directories, read the sidecar, acquire and release the journal lock, inspect and repair the active tail, append, truncate, rename, write compression output, and sync metadata. |
+
+Table 2: Domain ports.
+
+No domain module names a filesystem API, a locking crate, a TOML parser, a JSON
+serializer, or a `sysexits` code. The domain returns semantic errors, and the
+process boundary maps them to exit codes as section 10 describes.
+
+### 4.3 Adapters
+
+Adapters sit on both sides of the domain:
+
+- The CLI adapter reads process arguments and hands the domain raw field
+  words in their original order.
+- The TOML adapter parses the sidecar at the input boundary and converts
+  `[defaults]` and `[schema]` data into domain types, so the domain receives
+  `Value` defaults and coercion names rather than TOML values.
+- The JSON adapter converts a `Record` into one compact JSON object at the
+  output boundary through `serde_json`, emitting object keys in a deterministic
+  order.
+- The filesystem adapter implements `JournalStore` over the real filesystem.
+  A test adapter implements the same port for fault injection.
+- The process adapter, `src/main.rs`, maps the semantic error type to
+  `sysexits` codes.
 
 ## 5. CLI contract
 
@@ -205,20 +271,21 @@ has four tables:
 
 Merge and coercion order is deterministic:
 
-| Step | Rule                                                                                  | Winner                                                                                                                                                 |
-| ---- | ------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| 1    | Start with sidecar `[defaults]` converted from TOML values to their JSON equivalents. | Sidecar defaults seed the record.                                                                                                                      |
-| 2    | Process CLI fields in argument order and write each value to its object path.         | Each CLI field wins over sidecar defaults and over earlier CLI fields at the same path.                                                                |
-| 3    | Coerce each CLI value before writing it.                                              | Explicit `-s`, `-n`, and `-b` flags win for that word; otherwise the matching `[schema]` entry wins; otherwise default `jo`-inspired inference wins.   |
-| 4    | Validate an override timestamp, if present.                                           | A sidecar or CLI `timestamp` must match the canonical RFC 3339 UTC format in the event schema; an invalid override returns `EX_DATAERR` before append. |
-| 5    | Insert the generated invocation timestamp only when no override exists.               | The generated canonical UTC `timestamp` is added only when defaults and CLI fields did not produce one.                                                |
-| 6    | Serialize the resulting object.                                                       | The merged record is written as one compact JSON object.                                                                                               |
+| Step | Rule                                                                                              | Winner                                                                                                                                                 |
+| ---- | ------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 1    | Start with sidecar `[defaults]`, which the TOML adapter converts into domain `Value` equivalents. | Sidecar defaults seed the record.                                                                                                                      |
+| 2    | Process CLI fields in argument order and write each value to its object path.                     | Each CLI field wins over sidecar defaults and over earlier CLI fields at the same path.                                                                |
+| 3    | Coerce each CLI value before writing it.                                                          | Explicit `-s`, `-n`, and `-b` flags win for that word; otherwise the matching `[schema]` entry wins; otherwise default `jo`-inspired inference wins.   |
+| 4    | Validate an override timestamp, if present.                                                       | A sidecar or CLI `timestamp` must match the canonical RFC 3339 UTC format in the event schema; an invalid override returns `EX_DATAERR` before append. |
+| 5    | Insert the generated invocation timestamp only when no override exists.                           | The generated canonical UTC `timestamp` is added only when defaults and CLI fields did not produce one.                                                |
+| 6    | Serialize the resulting object.                                                                   | The merged record is written as one compact JSON object.                                                                                               |
 
 The sidecar schema never overrides an explicit CLI coercion flag. Schema
 entries affect only values supplied for the matching object path; they do not
 change sidecar defaults or the generated timestamp. When default `jo`-inspired
-inference is used, valid JSON values parse as JSON, empty `key=` becomes
-`null`, and other values remain strings.
+inference is used, a field word that is valid JSON parses into the matching
+`Value` variant, empty `key=` becomes a null `Value`, and other words remain
+strings.
 
 ## 7. Journal write protocol
 
@@ -262,28 +329,27 @@ classifies the active file tail while holding the journal lock:
   invalid JSON, not an object, or empty, the invocation fails closed with
   `EX_DATAERR` and leaves the file unchanged.
 
-A record is committed once its bytes and terminating newline are written
-and flushed; before that point it is uncommitted. The writer restores the
-recorded pre-append length on any in-process failure after bytes reach the
-file, including flush and filesystem metadata failures, and all of these
-failures map to `EX_IOERR`. A successful rollback leaves the record
-uncommitted, so a later retry cannot duplicate it.
+A record is committed once its bytes and terminating newline are written and
+flushed; before that point it is uncommitted. The writer restores the recorded
+pre-append length on any in-process failure after bytes reach the file,
+including flush and filesystem metadata failures, and all of these failures map
+to `EX_IOERR`. A successful rollback leaves the record uncommitted, so a later
+retry cannot duplicate it.
 
-A failed rollback truncate leaves the commit status unknown. The written
-bytes stay on disk, and which repair rule applies depends on how far the
-write got: an unterminated tail is removed by partial-tail repair, whereas
-a complete newline-terminated record is preserved by the rule above and is
-therefore committed. The invocation returns `EX_IOERR` without knowing
-which case occurred, which is why repair classifies the tail rather than
-trusting the previous writer.
+A failed rollback truncate leaves the commit status unknown. The written bytes
+stay on disk, and which repair rule applies depends on how far the write got:
+an unterminated tail is removed by partial-tail repair, whereas a complete
+newline-terminated record is preserved by the rule above and is therefore
+committed. The invocation returns `EX_IOERR` without knowing which case
+occurred, which is why repair classifies the tail rather than trusting the
+previous writer.
 
-`mpsc-log` is therefore at-least-once whenever the writer cannot confirm
-the outcome. A retry after `EX_IOERR` can duplicate a record that a failed
-rollback truncate left complete, and a process killed between the write and
-the exit can leave a complete record the caller never saw acknowledged.
-`mpsc-log` keeps no unknown-commit reconciliation state, so callers needing
-exactly-once semantics must carry their own idempotency key in the record
-and deduplicate when reading.
+`mpsc-log` is therefore at-least-once whenever the writer cannot confirm the
+outcome. A retry after `EX_IOERR` can duplicate a record that a failed rollback
+truncate left complete, and a process killed between the write and the exit can
+leave a complete record the caller never saw acknowledged. `mpsc-log` keeps no
+unknown-commit reconciliation state, so callers needing exactly-once semantics
+must carry their own idempotency key in the record and deduplicate when reading.
 
 The repair path does not quarantine files and does not truncate a
 newline-terminated corrupt record by default. It also does not scan every
@@ -338,13 +404,13 @@ zero, no plain archives exist and the active file is gzipped straight into
 generation `1`. When `C` is zero, no archive is compressed and the oldest plain
 generation is evicted rather than gzipped.
 
-Rotation is evaluated after tail repair and before the append. The
-invocation compares the repaired active file length plus the length of the
-serialized pending record, including its terminating newline, against
-`max_bytes`. It rotates only when the active file is non-empty and that
-combined length exceeds `max_bytes`. When the active file is empty, the
-pending record is appended directly, so an oversized record never rotates
-an empty active file into an archive.
+Rotation is evaluated after tail repair and before the append. The invocation
+compares the repaired active file length plus the length of the serialized
+pending record, including its terminating newline, against `max_bytes`. It
+rotates only when the active file is non-empty and that combined length exceeds
+`max_bytes`. When the active file is empty, the pending record is appended
+directly, so an oversized record never rotates an empty active file into an
+archive.
 
 Size-only rotation is a prepare phase followed by a commit point. The prepare
 phase only creates files and renames them within the journal directory, so
@@ -542,18 +608,26 @@ filesystem and mount configuration.
 ## 12. Module structure
 
 `src/main.rs` owns CLI startup and process exit mapping only. The library owns
-the implementation:
+the implementation, split into domain modules, ports, and adapters:
 
-| Module    | Responsibility                                                                 |
-| --------- | ------------------------------------------------------------------------------ |
-| `args`    | Parse the journal path and raw selected `jo` field tail.                       |
-| `fields`  | Parse field words, object paths, coercion flags, and file-value forms.         |
-| `config`  | Load and validate sidecar TOML.                                                |
-| `record`  | Merge defaults, CLI fields, schema coercions, and generated timestamp.         |
-| `journal` | Create directories, acquire locks, repair tails, rotate, compress, and append. |
-| `errors`  | Semantic error enum and exit-code mapping.                                     |
-| `clock`   | Injectable timestamp source for deterministic tests.                           |
-| `fs`      | Filesystem adapter boundary for fault injection.                               |
+| Module    | Layer       | Responsibility                                                                                                                        |
+| --------- | ----------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| `args`    | Adapter     | Read process arguments and hand on the journal path and the raw selected `jo` field tail in order.                                    |
+| `fields`  | Domain      | Interpret field words, object paths, coercion flags, and file-value forms into domain `Value` results.                                |
+| `config`  | Adapter     | Parse and validate sidecar TOML at the input boundary, converting `[defaults]` and `[schema]` data into domain types.                 |
+| `record`  | Domain      | Build the `Record`: merge defaults and CLI fields, apply coercion policy and object-path updates, and insert the generated timestamp. |
+| `journal` | Domain      | Plan tail repair, rotation, retention, and append, and drive them through the `JournalStore` port.                                    |
+| `errors`  | Domain      | Semantic error type. Exit-code mapping belongs to the process boundary, not to this module.                                           |
+| `clock`   | Domain port | Declare the `Clock` port; an infrastructure implementation supplies the real instant.                                                 |
+| `fs`      | Adapter     | Implement `JournalStore` over the real filesystem, alongside the fault-injection test double.                                         |
+
+Table 3: Module layers and responsibilities.
+
+Two boundary concerns are not domain modules. JSON output serialization is an
+adapter step at the output boundary, converting the domain `Record` into one
+compact JSON object through `serde_json` immediately before the bytes reach the
+`JournalStore` port. Process exit mapping belongs to `src/main.rs`, which
+translates the semantic error type from `errors` into a `sysexits` code.
 
 The first implementation should expose no stable library API beyond what the
 binary needs. Public library exports remain internal support until a roadmap

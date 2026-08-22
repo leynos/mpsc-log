@@ -15,12 +15,13 @@ Duplicate writes to the same object path resolve with last-wins semantics.
 `mpsc-log` should feel familiar to workflow authors who already use `jo` to
 build JSON from shell arguments. The product goal is not to be a drop-in `jo`
 replacement. It is a reliable multi-process JSON Lines writer whose root record
-is always an object and whose output is produced through `serde_json::Map`.
+is always an object, held in the domain as a `Record` object map of domain
+`Value` values and serialized by the JSON adapter at the output boundary.
 
 That distinction matters for duplicate object keys. Textual JSON can contain
-repeated object names, and `jo` can produce those names in its output. A JSON
+repeated object names, and `jo` can produce those names in its output. An
 object map cannot preserve repeated textual keys. Once `mpsc-log` chooses a map
-as its internal representation, duplicate writes must either be rejected or
+as its domain representation, duplicate writes must either be rejected or
 collapsed into one value.
 
 The project needs an explicit compatibility statement before implementing the
@@ -53,7 +54,10 @@ argument parser, merge rules, sidecar schema interaction, and tests.
 
 ### Technical requirements
 
-- Store records in `serde_json::Map` before serialization.
+- Store records in a domain `Record` object map whose values are domain
+  `Value` values, and keep serialization crates out of domain modules.
+- Serialize that `Record` to compact JSON through `serde_json` in the JSON
+  adapter at the output boundary.
 - Process CLI field words in argument order.
 - Let later writes to the same object path replace earlier writes.
 - Pair the duplicate-key behaviour with parameterized tests covering top-level
@@ -89,9 +93,9 @@ awkward and complicates the existing precedence model.
 ### Option C: Preserve textual duplicate JSON object names
 
 This option would attempt closer textual compatibility with `jo` by emitting
-duplicate JSON object names. It conflicts with `serde_json::Map`, makes schema
-coercion and object-path updates harder to reason about, and produces records
-that many consumers collapse differently.
+duplicate JSON object names. It conflicts with the domain `Record` object map,
+makes schema coercion and object-path updates harder to reason about, and
+produces records that many consumers collapse differently.
 
 ### Option D: Full `jo` compatibility
 
@@ -137,7 +141,8 @@ textual JSON names.
 - Goals:
   - Make the compatibility boundary honest for users and implementers.
   - Preserve the familiar shell-friendly field forms needed for logging.
-  - Keep object-root JSON serialization map-based and deterministic.
+  - Keep the object-root `Record` map-based and its serialization
+    deterministic.
   - Align duplicate-path behaviour with merge precedence.
 - Non-goals:
   - Preserve repeated textual JSON object names.
