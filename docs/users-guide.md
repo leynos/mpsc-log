@@ -10,9 +10,9 @@ settings, and documented starter code. Library projects render `src/lib.rs`.
 Application projects render `src/main.rs`, `src/lib.rs`, release automation, and
 `[package.metadata.binstall]` metadata for binary installation.
 
-`make coverage` uses `lld` because LLVM coverage tools expect
-LLVM-compatible linker behaviour. Local build tooling and linker
-configuration are contributor concerns; see the developers' guide.
+`make coverage` uses `lld` because LLVM coverage tools expect LLVM-compatible
+linker behaviour. Local build tooling and linker configuration are contributor
+concerns; see the developers' guide.
 
 ## Makefile Targets
 
