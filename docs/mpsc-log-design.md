@@ -121,18 +121,51 @@ translation between external formats and domain types.
 
 ```mermaid
 flowchart LR
-    Agent[Agent or workflow] --> CLI[mpsc-log CLI]
-    CLI --> Parser[Argument parser]
-    CLI --> Config[Sidecar loader]
-    Parser --> Builder[Record builder]
-    Config --> Builder
-    Builder --> Writer[Journal writer]
-    Writer --> Lock[(Journal lock)]
-    Writer --> Journal[(JSONL journal)]
-    Writer --> Rotated[(Rotated logs)]
+    Agent[Agent or workflow]
+
+    subgraph inbound [Input adapters]
+        Args[args: process arguments]
+        Cfg[config: sidecar TOML]
+    end
+
+    subgraph core [Domain]
+        Fields[fields: field interpretation]
+        Rec[record: builds the Record]
+        Jnl[journal: plans repair and rotation]
+        Errs[errors: semantic errors]
+    end
+
+    subgraph ports [Ports]
+        Clk[[Clock]]
+        Store[[JournalStore]]
+    end
+
+    subgraph outbound [Output adapters]
+        Json[JSON serializer]
+        Fs[fs: filesystem]
+        Exit[main.rs: sysexits mapping]
+    end
+
+    Agent --> Args
+    Args --> Fields
+    Cfg --> Rec
+    Fields --> Rec
+    Clk --> Rec
+    Rec --> Jnl
+    Jnl --> Json
+    Json --> Store
+    Jnl --> Store
+    Errs --> Exit
+    Store -. implemented by .-> Fs
+    Fs --> Lock[(Journal lock)]
+    Fs --> JournalFile[(JSONL journal)]
+    Fs --> Rotated[(Rotated logs)]
 ```
 
-Figure 1: Runtime component topology.
+Figure 1: Runtime component topology. The domain reaches the outside world only
+through the `Clock` and `JournalStore` ports; adapters own the process
+arguments, the sidecar TOML, JSON serialization, the filesystem, and the
+`sysexits` mapping.
 
 The lock file is the coordination boundary. The naming decision is recorded in
 [ADR 001: Lock file naming](adr-001-lock-file-naming.md): `mpsc-log` appends
