@@ -64,8 +64,8 @@ can safely create under contention.
   before the authoritative sidecar configuration read, repairing tails,
   rotating, compressing, or appending.
 - Permit an unlocked, advisory pre-read of the sidecar `timeout_ms` value
-  solely to choose the lock-acquisition timeout; it never substitutes for
-  the authoritative read.
+  solely to choose the lock-acquisition timeout; it never substitutes for the
+  authoritative read.
 - Treat `.lock` journal paths as invalid because `.lock` is reserved for
   coordination artefacts.
 - Treat `.toml` journal paths as invalid when the derived sidecar path would be
@@ -180,8 +180,7 @@ configuration must choose distinct stems or directories, such as
 2. Implement lock-path derivation as a pure function and test the examples in
    Table 1.
 3. Use the derived lock path for the complete critical section: the
-   authoritative sidecar read, tail repair, rotation, compression, and
-   append.
+   authoritative sidecar read, tail repair, rotation, compression, and append.
 4. Document reserved suffixes and sidecar sharing in the users' guide when the
    CLI implementation lands.
 

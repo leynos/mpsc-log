@@ -2,7 +2,6 @@
 
 This guide explains the contributor workflow for the generated mpsc-log project.
 
-
 ## mpsc-log implementation architecture
 
 `mpsc-log` is planned as a small domain core surrounded by adapters. The domain
@@ -14,7 +13,6 @@ defines so contributors can place new code correctly.
 `src/main.rs` owns process startup and `sysexits` mapping only. It constructs
 the adapters, runs the domain, and translates the semantic error type into an
 exit code. It carries no parsing, merging, rotation, or filesystem logic.
-
 
 ### Planned modules
 
@@ -28,7 +26,6 @@ exit code. It carries no parsing, merging, rotation, or filesystem logic.
 | `errors`  | Domain      | Define the semantic error type. Exit-code mapping belongs to `src/main.rs`, not here.                                                 |
 | `clock`   | Domain port | Declare the `Clock` port; an infrastructure implementation supplies the real instant.                                                 |
 | `fs`      | Adapter     | Implement `JournalStore` over the real filesystem, alongside the fault-injection test double.                                         |
-
 
 ### The adapter boundary
 
@@ -59,7 +56,6 @@ for the injection patterns this repository expects.
 When adding code, put format and effect handling in an adapter and keep policy
 in the domain. If a domain module needs a new external effect, add a port
 rather than importing the concrete API.
-
 
 ### Further reading
 

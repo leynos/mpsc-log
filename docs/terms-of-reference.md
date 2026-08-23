@@ -168,12 +168,12 @@ artefact rather than trusting a caller's informal summary.
   next boundary.
 - Define local generation retention on the writer's filesystem, as follows.
 - For size-only rotation, retain the newest rotated generations (four by
-  default, via `plain_generations`) as plain files, and gzip older
-  retained generations (per `compressed_generations`).
+  default, via `plain_generations`) as plain files, and gzip older retained
+  generations (per `compressed_generations`).
 - For scheduled rotation, retain every size-split file in the newest
-  completed periods (four by default, via `plain_generations`) as plain
-  files, gzip only older retained periods (per `compressed_generations`),
-  and never compress files in the current period.
+  completed periods (four by default, via `plain_generations`) as plain files,
+  gzip only older retained periods (per `compressed_generations`), and never
+  compress files in the current period.
 - Read a sidecar TOML file for rotation configuration, schema-guided type
   coercion, and default field values.
 - Surface failures through stable exit codes and diagnostics suitable for
