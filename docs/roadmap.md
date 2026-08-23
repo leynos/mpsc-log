@@ -318,6 +318,11 @@ terms-of-reference.md §§5, 7.
   - See mpsc-log-design.md §11 and adr-002-testing-strategy.md.
   - Success: the suite covers `jo` syntax form, coercion source, object path,
     sidecar default, rotation schedule, rotation state, and lock contention.
+  - Success: parameterized duplicate-path tests cover duplicate writes at the
+    same object path across top-level keys, nested object paths, a sidecar
+    default overridden by a CLI field, and explicit `-s`, `-n`, and `-b`
+    coercion flags, asserting last-wins: the later write replaces the earlier
+    value at that object path.
 
 ## 4. Rotation and retention without record loss
 
