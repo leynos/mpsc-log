@@ -2,6 +2,72 @@
 
 This guide explains the contributor workflow for the generated mpsc-log project.
 
+## mpsc-log implementation architecture
+
+`mpsc-log` is planned as a small domain core surrounded by adapters. The domain
+owns the record model and the write, rotation, and retention policy. Adapters
+own every external format and effect. The authoritative specification is the
+[design document](mpsc-log-design.md); this section summarizes the boundary it
+defines so contributors can place new code correctly.
+
+`src/main.rs` owns process startup and `sysexits` mapping only. It constructs
+the adapters, runs the domain, and translates the semantic error type into an
+exit code. It carries no parsing, merging, rotation, or filesystem logic.
+
+### Planned modules
+
+| Module    | Layer       | Responsibility                                                                                                                        |
+| --------- | ----------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| `args`    | Adapter     | Read process arguments and hand on the journal path and the raw selected `jo` field tail in order.                                    |
+| `fields`  | Domain      | Interpret field words, object paths, coercion flags, and file-value forms into domain `Value` results.                                |
+| `config`  | Adapter     | Parse and validate the sidecar TOML at the input boundary, converting `[defaults]` and `[schema]` data into domain types.             |
+| `record`  | Domain      | Build the `Record`: merge defaults and CLI fields, apply coercion policy and object-path updates, and insert the generated timestamp. |
+| `journal` | Domain      | Plan tail repair, rotation, retention, and append, and drive them through the `JournalStore` port.                                    |
+| `errors`  | Domain      | Define the semantic error type. Exit-code mapping belongs to `src/main.rs`, not here.                                                 |
+| `clock`   | Domain port | Declare the `Clock` port; an infrastructure implementation supplies the real instant.                                                 |
+| `fs`      | Adapter     | Implement `JournalStore` over the real filesystem, alongside the fault-injection test double.                                         |
+
+### The adapter boundary
+
+The domain never names an external API. It works only with the domain `Record`
+and `Value` types and with ports. Everything that reaches outside the process,
+or that encodes an external format, is an adapter concern:
+
+- CLI argument reads.
+- TOML parsing of the sidecar.
+- JSON serialization of the record.
+- Filesystem operations.
+- Locking.
+- Compression.
+- Process exit mapping.
+
+The domain reaches time and persistence-related effects through two ports.
+`Clock` supplies the invocation instant used for the generated `timestamp`
+field. `JournalStore` performs every journal-directory effect: creating parent
+directories, reading the sidecar, acquiring and releasing the journal lock,
+inspecting and repairing the active tail, appending, truncating, renaming,
+writing compression output, and syncing metadata.
+
+Because both are traits, tests substitute a fixed clock and a fault-injecting
+store without mutating global process state. See
+[reliable testing in Rust via dependency injection](reliable-testing-in-rust-via-dependency-injection.md)
+for the injection patterns this repository expects.
+
+When adding code, put format and effect handling in an adapter and keep policy
+in the domain. If a domain module needs a new external effect, add a port
+rather than importing the concrete API.
+
+### Further reading
+
+- [Design](mpsc-log-design.md) specifies the CLI contract, record model,
+  ports, adapters, write protocol, and rotation protocol.
+- [ADR 001: Lock file naming](adr-001-lock-file-naming.md) records how the
+  journal lock path is derived and which suffixes are reserved.
+- [ADR 002: Testing strategy](adr-002-testing-strategy.md) records how the
+  required testing prongs apply to this design.
+- [ADR 003: `jo` field syntax and duplicate keys](adr-003-jo-field-syntax-and-duplicate-keys.md)
+  records the selected field syntax and last-wins duplicate-path semantics.
+
 ## Spelling policy
 
 Run `make spelling` to enforce en-GB-oxendict prose spelling. The generated
