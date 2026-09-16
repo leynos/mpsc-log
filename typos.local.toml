@@ -6,7 +6,7 @@ schema = 1
 stems = []
 
 [words]
-# Official names: Azure Architecture Center and GitHub Flavored Markdown.
+# Crate name used verbatim in prose.
 accepted = ["flate2"]
 
 [words.corrections]
@@ -17,8 +17,8 @@ ignore = [
     "\\bGitHub Flavored\\s+Markdown\\b",
     "\\bflate2\\b",
     # Inline code spans quote identifiers verbatim, so they are not en-GB
-    # prose; the shared base previously supplied this exemption, so this
-    # restores it locally.
+    # prose. Inline code spans were masked by the previous dictionary
+    # snapshot; kept until the shared dictionary rules on it.
     "`[^`\\n]+`",
     # `mold` names the Rust linker tool (github.com/rui314/mold), not a
     # misspelling of the en-GB "mould". Scoped to the estate's known

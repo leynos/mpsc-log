@@ -37,6 +37,8 @@ jobs:
             **/*.md
             !**/target/**
             !**/dist/**
+            !**/.uv-cache/**
+            !**/.uv-tools/**
       - name: Setup uv
         uses: astral-sh/setup-uv@e105c8fb1d7b13074b851babdaef4185243c6a07
       - name: Spelling
