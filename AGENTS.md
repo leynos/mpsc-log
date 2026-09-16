@@ -314,11 +314,12 @@ project:
 ## Markdown guidance
 
 - Validate Markdown files using `make markdownlint`. This target also enforces
-  en-GB-oxendict spelling with pinned `typos`.
-- The spelling configuration `typos.toml` is generated. Edit
-  `typos.local.toml` for narrow repository terminology, then regenerate it with
-  `uv run scripts/generate_typos_config.py`; never edit generated entries by
-  hand.
+  en-GB-oxendict spelling.
+- Enforce spelling with `make spelling`. It regenerates `typos.toml` from the
+  live shared dictionary and the `typos.local.toml` overlay on every run, so
+  `typos.toml` is never drift checked in continuous integration. Edit
+  `typos.local.toml` for narrow repository terminology; never edit generated
+  entries by hand.
 - Quoted APIs and identifiers retain upstream spelling. Put them in backticks
   or fenced code blocks, which the spelling gate ignores, rather than adding
   word-level exceptions.
