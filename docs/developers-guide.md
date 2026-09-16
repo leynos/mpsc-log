@@ -70,18 +70,16 @@ rather than importing the concrete API.
 
 ## Spelling policy
 
-Run `make spelling` to enforce en-GB-oxendict prose spelling. The generated
-`typos.toml` starts from the shared estate dictionary, refreshes its untracked
-local cache only when the authority is newer, and then applies the narrow
-repository policy in `typos.local.toml`. Edit the local policy and regenerate
-the configuration rather than changing generated entries by hand.
+Run `make spelling` to enforce en-GB-oxendict prose spelling. The target runs
+the shared `typos-config-builder` gate, which regenerates `typos.toml` on every
+run from the live shared estate dictionary and the `typos.local.toml` overlay.
+A word added to the shared dictionary therefore needs no change here, and
+because the dictionary is live, `typos.toml` is never drift checked in
+continuous integration.
 
-The pure dictionary schema, merge, and rendering logic lives in
-`scripts/typos_rollout_dictionary.py`; reuse it only through the rollout and
-generator entrypoints. `scripts/typos_rollout_cache.py` owns guarded HTTPS and
-atomic persistence boundaries. Only connectivity failures may reuse stale or
-tracked policy: HTTP status, validation, and local persistence errors fail
-closed.
+Add narrow repository-specific identifier, API, proper-name, or fixture
+exceptions to `typos.local.toml`. Hand-editing `typos.toml` is not supported
+and any edits are overwritten on the next run.
 
 ## Local Workflow
 
