@@ -19,7 +19,7 @@ jobs:
         with:
           persist-credentials: false
       - name: Setup Rust
-        uses: leynos/shared-actions/.github/actions/setup-rust@944b039cf98dccec77bd051e1d901bcb36e8e246
+        uses: leynos/shared-actions/.github/actions/setup-rust@37a39836e897b301fdd32b4db883706c953444ef
       - name: Install mold linker
         if: runner.os == 'Linux'
         run: |
@@ -31,7 +31,7 @@ jobs:
       - name: Install mdtablefix
         # `make check-fmt` runs `mdtablefix --check --git`; 0.6.0 is the
         # first release with `--check` and `--git`.
-        uses: leynos/shared-actions/.github/actions/install-mdtablefix@944b039cf98dccec77bd051e1d901bcb36e8e246
+        uses: leynos/shared-actions/.github/actions/install-mdtablefix@37a39836e897b301fdd32b4db883706c953444ef
         with:
           version: "0.6.0"
 
@@ -42,7 +42,7 @@ jobs:
         with:
           globs: '**/*.md'
       - name: Setup uv
-        uses: astral-sh/setup-uv@e105c8fb1d7b13074b851babdaef4185243c6a07
+        uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7
       - name: Spelling
         run: make spelling
       - name: Install test runner
@@ -97,7 +97,7 @@ jobs:
           echo "Coverage CFLAGS: -fuse-ld=lld"
           echo "Coverage LDFLAGS: -fuse-ld=lld"
       - name: Test and Measure Coverage
-        uses: leynos/shared-actions/.github/actions/generate-coverage@944b039cf98dccec77bd051e1d901bcb36e8e246
+        uses: leynos/shared-actions/.github/actions/generate-coverage@37a39836e897b301fdd32b4db883706c953444ef
         env:
           CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_LINKER: clang
           RUSTFLAGS: -C link-arg=-fuse-ld=lld
@@ -110,7 +110,7 @@ jobs:
         env:
           CS_ACCESS_TOKEN: ${{ secrets.CS_ACCESS_TOKEN }}
         if: ${{ env.CS_ACCESS_TOKEN }}
-        uses: leynos/shared-actions/.github/actions/upload-codescene-coverage@944b039cf98dccec77bd051e1d901bcb36e8e246
+        uses: leynos/shared-actions/.github/actions/upload-codescene-coverage@37a39836e897b301fdd32b4db883706c953444ef
         with:
           format: lcov
           access-token: ${{ env.CS_ACCESS_TOKEN }}
