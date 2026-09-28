@@ -21,7 +21,7 @@ jobs:
         with:
           persist-credentials: false
       - name: Setup Rust
-        uses: leynos/shared-actions/.github/actions/setup-rust@37a39836e897b301fdd32b4db883706c953444ef
+        uses: leynos/shared-actions/.github/actions/setup-rust@a06e1b8f83ce7f9da5bb26625ef2b7021adbf958
       - name: Install cargo-audit
         env:
           RUSTFLAGS: ""
