@@ -77,6 +77,10 @@ A word added to the shared dictionary therefore needs no change here, and
 because the dictionary is live, `typos.toml` is never drift checked in
 continuous integration.
 
+`TYPOS_CONFIG_BUILDER_VERSION` in the `Makefile` pins the
+`typos-config-builder` release the gate runs (currently `v0.1.3`). Raise it
+together with the regenerated `typos.toml`, never on its own.
+
 Add narrow repository-specific identifier, API, proper-name, or fixture
 exceptions to `typos.local.toml`. Hand-editing `typos.toml` is not supported
 and any edits are overwritten on the next run.
