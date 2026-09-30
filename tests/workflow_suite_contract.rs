@@ -328,9 +328,22 @@ fn a_bare_make_runs_the_default_goal(#[case] goal: &str, #[case] expected: bool)
 #[rstest]
 #[case::first_rule(".PHONY: a\nbuild: x\nall: y\n", "build")]
 #[case::assigned(".DEFAULT_GOAL := test\nbuild:\n", "test")]
-#[case::conditional_assignment(".DEFAULT_GOAL ?= test\nbuild:\n", "test")]
+#[case::conditional_assignment_changes_nothing(".DEFAULT_GOAL ?= test\nbuild:\n", "build")]
 #[case::plain_assignment(".DEFAULT_GOAL = test\nbuild:\n", "test")]
-#[case::appending_is_not_read(".DEFAULT_GOAL += test\nbuild:\n", "build")]
+#[case::last_assignment_wins(".DEFAULT_GOAL := first\n.DEFAULT_GOAL := second\nbuild:\n", "second")]
+#[case::conditional_keeps_the_first(
+    ".DEFAULT_GOAL := first\n.DEFAULT_GOAL ?= second\nbuild:\n",
+    "first"
+)]
+#[case::conditional_then_set(".DEFAULT_GOAL ?= second\n.DEFAULT_GOAL := first\nbuild:\n", "first")]
+#[case::a_later_change_to_test(".DEFAULT_GOAL := build\nlint:\n.DEFAULT_GOAL := test\n", "test")]
+#[case::an_empty_value_clears_it(".DEFAULT_GOAL := first\n.DEFAULT_GOAL :=\nbuild:\n", "build")]
+#[case::several_words_are_refused(
+    ".DEFAULT_GOAL := first\n.DEFAULT_GOAL += second\nbuild:\n",
+    "build"
+)]
+#[case::spaced_operator(".DEFAULT_GOAL   :=   spaced\nbuild:\n", "spaced")]
+#[case::appending_to_nothing_sets_it(".DEFAULT_GOAL += test\nbuild:\n", "test")]
 #[case::recipe_text_is_not_an_assignment("first:\n\t.DEFAULT_GOAL = test\n", "first")]
 #[case::comments_are_skipped("# build: not a rule\nrun: z\n", "run")]
 #[case::special_targets_are_skipped(".PHONY: a\n.SUFFIXES:\nrun: z\n", "run")]
@@ -449,4 +462,118 @@ fn a_run_block_line_is_a_command_of_its_job() {
     let jobs = Workflow(text).jobs();
     let job = jobs.first().expect("one job");
     assert!(job.commands().any(|command| command.runs_suite(SUITE_GOAL)));
+}
+
+/// Every make target the reader counts as running the suite.
+#[rstest]
+#[case::make_test("test")]
+#[case::make_all("all")]
+#[case::make_coverage("coverage")]
+#[case::make_dev_test("dev-test")]
+#[case::make_test_fast("test-fast")]
+fn every_suite_target_runs_the_suite(#[case] target: &str) {
+    assert!(Command::from_line(&format!("make {target}")).runs_suite("build"));
+    assert!(Command::from_line(&format!("make -j 4 {target}")).runs_suite("build"));
+    assert!(!Command::from_line(&format!("make {target}-not")).runs_suite("build"));
+}
+
+/// Every make option that reads or describes the makefile without running a
+/// goal, alone and beside a suite target.
+#[rstest]
+#[case::just_print("--just-print")]
+#[case::dry_run("--dry-run")]
+#[case::recon("--recon")]
+#[case::short_dry_run("-n")]
+#[case::question("--question")]
+#[case::short_question("-q")]
+#[case::help("--help")]
+#[case::version("--version")]
+#[case::short_version("-v")]
+#[case::short_help("-h")]
+#[case::clustered("-ns")]
+fn every_inert_make_option_runs_no_goal(#[case] option: &str) {
+    assert!(!Command::from_line(&format!("make {option}")).runs_suite("all"));
+    assert!(!Command::from_line(&format!("make {option} test")).runs_suite("all"));
+    assert!(!Command::from_line(&format!("make test {option}")).runs_suite("all"));
+}
+
+/// `command -v` and `command -V` describe a command and run nothing.
+#[rstest]
+#[case::lower("command -v make test")]
+#[case::upper("command -V make test")]
+#[case::upper_bare("command -V make")]
+fn command_lookup_runs_nothing(#[case] line: &str) {
+    assert!(!Command::from_line(line).runs_suite("all"));
+}
+
+/// Returns what GNU make itself takes as the default goal of `makefile`, or
+/// `None` when make refuses it. `make -pn` prints the variable database
+/// without running a recipe, and `.DEFAULT_GOAL` is the value make settled on
+/// after reading every assignment (GNU make manual, "Other Special Variables").
+#[cfg(target_os = "linux")]
+fn make_default_goal(makefile: &str) -> std::io::Result<Option<String>> {
+    use std::{
+        io::Write as _,
+        process::{Command as Process, Stdio},
+    };
+
+    let mut child = Process::new("make")
+        .args(["-f", "-", "-pn"])
+        .env_remove("MAKEFLAGS")
+        .env_remove("MAKELEVEL")
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::null())
+        .spawn()?;
+    child
+        .stdin
+        .take()
+        .ok_or_else(|| std::io::Error::other("make's stdin was not piped"))?
+        .write_all(makefile.as_bytes())?;
+    let output = child.wait_with_output()?;
+    let text = String::from_utf8_lossy(&output.stdout);
+    Ok(output.status.success().then_some(()).and_then(|()| {
+        text.lines().find_map(|line| {
+            let (name, value) = line.split_once(" = ").or_else(|| line.split_once(" := "))?;
+            (name == ".DEFAULT_GOAL").then(|| value.to_owned())
+        })
+    }))
+}
+
+/// The reader agrees with GNU make on every Makefile it can be run on, so the
+/// behaviour is pinned to make and not to anyone's reading of its manual.
+#[cfg(target_os = "linux")]
+#[rstest]
+#[case::first_rule(".PHONY: a\nbuild: x\nx:\n")]
+#[case::assigned(".DEFAULT_GOAL := test\nbuild:\ntest:\n")]
+#[case::conditional(".DEFAULT_GOAL ?= test\nbuild:\ntest:\n")]
+#[case::plain(".DEFAULT_GOAL = test\nbuild:\ntest:\n")]
+#[case::last_assignment_wins(
+    ".DEFAULT_GOAL := first\n.DEFAULT_GOAL := second\nfirst:\nsecond:\nbuild:\n"
+)]
+#[case::conditional_keeps_the_first(
+    ".DEFAULT_GOAL := first\n.DEFAULT_GOAL ?= second\nfirst:\nsecond:\n"
+)]
+#[case::conditional_then_set(".DEFAULT_GOAL ?= second\n.DEFAULT_GOAL := first\nfirst:\nsecond:\n")]
+#[case::a_later_change_to_test(".DEFAULT_GOAL := build\nbuild:\ntest:\n.DEFAULT_GOAL := test\n")]
+#[case::an_empty_value_clears_it(".DEFAULT_GOAL := first\n.DEFAULT_GOAL :=\nbuild:\nfirst:\n")]
+#[case::appending_to_nothing(".DEFAULT_GOAL += test\nbuild:\ntest:\n")]
+#[case::comments_are_skipped("# build: not a rule\nrun:\n")]
+#[case::special_targets_are_skipped(".PHONY: a\n.SUFFIXES:\nrun:\n")]
+#[case::recipe_text_is_not_an_assignment("first:\n\t@: .DEFAULT_GOAL = test\nsecond:\n")]
+fn the_reader_agrees_with_gnu_make(#[case] makefile: &str) {
+    let by_make = make_default_goal(makefile)
+        .expect("make must run")
+        .expect("make must accept the fixture");
+    assert_eq!(default_goal_of(makefile), by_make, "{makefile:?}");
+}
+
+/// Make refuses a default goal of several targets; the reader does not read
+/// such a value and falls back to the first rule.
+#[cfg(target_os = "linux")]
+#[test]
+fn make_refuses_several_words_and_the_reader_does_not_read_them() {
+    let makefile = ".DEFAULT_GOAL := first\n.DEFAULT_GOAL += second\nbuild:\nfirst:\nsecond:\n";
+    assert_eq!(make_default_goal(makefile).expect("make must run"), None);
+    assert_eq!(default_goal_of(makefile), "build");
 }
