@@ -39,7 +39,7 @@ WHITAKER ?= $(or $(shell command -v whitaker 2>/dev/null),$(wildcard $(USER_WHIT
 UV ?= uv
 UV_ENV = UV_CACHE_DIR=.uv-cache UV_TOOL_DIR=.uv-tools
 TYPOS_CONFIG_BUILDER_VERSION ?= v0.1.3
-TYPOS_CONFIG_BUILDER = $(UV_ENV) $(UV) tool run --from \
+TYPOS_CONFIG_BUILDER = $(UV_ENV) $(UV) tool run --python 3.14 --from \
 	"git+https://github.com/leynos/typos-config-builder.git@$(TYPOS_CONFIG_BUILDER_VERSION)" \
 	typos-config-builder
 
