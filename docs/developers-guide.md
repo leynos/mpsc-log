@@ -79,7 +79,9 @@ continuous integration.
 
 `TYPOS_CONFIG_BUILDER_VERSION` in the `Makefile` pins the
 `typos-config-builder` release the gate runs (currently `v0.1.3`). Raise it
-together with the regenerated `typos.toml`, never on its own.
+together with the regenerated `typos.toml`, never on its own. The builder
+requires Python 3.14 or newer, so the target passes `--python 3.14` and `uv`
+fetches that interpreter when the host lacks one.
 
 Add narrow repository-specific identifier, API, proper-name, or fixture
 exceptions to `typos.local.toml`. Hand-editing `typos.toml` is not supported
