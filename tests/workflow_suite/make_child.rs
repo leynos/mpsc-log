@@ -96,6 +96,42 @@ fn the_child_run_drops_make_flags_and_sets_only_the_requested_path() {
     );
 }
 
+/// Returns the tests the child lists under `make_probe::`, one path each. The
+/// listing is taken without the child selection's `--skip` arguments, so it is
+/// an oracle independent of the selection a child run uses.
+///
+/// # Errors
+///
+/// Returns the error raised locating or starting the test binary.
+fn listed_probe_tests() -> std::io::Result<Vec<String>> {
+    let output = std::process::Command::new(std::env::current_exe()?)
+        .args(["make_probe::", "--list"])
+        .output()?;
+    Ok(String::from_utf8_lossy(&output.stdout)
+        .lines()
+        .filter_map(|line| line.strip_suffix(": test").map(str::to_owned))
+        .collect())
+}
+
+/// Returns how many of `listed` are make-backed: every test not named in
+/// [`NOT_MAKE_BACKED`], whose parameterised cases share the name as a path
+/// segment. A selection that omits a make-backed test runs fewer than this.
+fn make_backed_count(listed: &[String]) -> usize {
+    let is_pure = |path: &str, name: &str| {
+        path.ends_with(&format!("::{name}")) || path.contains(&format!("::{name}::"))
+    };
+    for name in NOT_MAKE_BACKED {
+        assert!(
+            listed.iter().any(|path| is_pure(path, name)),
+            "{name} is listed as not make-backed but no such test exists: {listed:?}"
+        );
+    }
+    listed
+        .iter()
+        .filter(|path| !NOT_MAKE_BACKED.iter().any(|name| is_pure(path, name)))
+        .count()
+}
+
 /// Returns how many tests the child reported passing.
 fn passed(stdout: &str) -> usize {
     stdout
@@ -118,7 +154,11 @@ fn a_host_without_make_skips_every_make_backed_test() {
         "the child failed: {stdout}{stderr}"
     );
     let ran = passed(&stdout);
-    assert!(ran > 0, "the child ran no make-backed test: {stdout}");
+    assert_eq!(
+        ran,
+        make_backed_count(&listed_probe_tests().expect("the test binary must list its tests")),
+        "the child must run every make-backed test: {stdout}"
+    );
     let skips = stderr.matches("skipped: make could not be run").count();
     assert_eq!(
         skips, ran,
@@ -139,9 +179,10 @@ fn a_host_with_make_runs_the_make_backed_tests() {
         output.status.success(),
         "the child failed: {stdout}{stderr}"
     );
-    assert!(
-        passed(&stdout) > 0,
-        "the child ran no make-backed test: {stdout}"
+    assert_eq!(
+        passed(&stdout),
+        make_backed_count(&listed_probe_tests().expect("the test binary must list its tests")),
+        "the child must run every make-backed test: {stdout}"
     );
     assert!(
         !stderr.contains("skipped:"),
