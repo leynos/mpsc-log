@@ -36,7 +36,7 @@ fn make_default_goal(makefile: &str) -> std::io::Result<GoalProbe> {
 /// Make's own flag variables, which the probe must not inherit: a `-q` in any
 /// of them makes make exit non-zero when a target needs updating, which would
 /// read as a refused fixture.
-const INHERITED_FLAGS: [&str; 3] = ["MAKEFLAGS", "GNUMAKEFLAGS", "MAKELEVEL"];
+pub(super) const INHERITED_FLAGS: [&str; 3] = ["MAKEFLAGS", "GNUMAKEFLAGS", "MAKELEVEL"];
 
 /// Runs the probe with `environment` set on the child first, then removes
 /// [`INHERITED_FLAGS`], so a test can prove an inherited flag has no effect.
@@ -242,77 +242,4 @@ fn an_inherited_question_flag_does_not_hide_the_goal(#[case] variable: &str) {
     let makefile = "build:\n\t@echo built\ntest:\n";
     let probe = make_default_goal_in(makefile, &[(variable, "-q")]).expect("make must run");
     assert_eq!(probe.goal.as_deref(), Some("build"), "{}", probe.diagnostic);
-}
-
-/// Runs this test binary as a child with `search_path` as its `PATH` (or its own when
-/// `None`) and `filter` as the only test selection, returning its output. The
-/// environment is the child's alone; the test process is never mutated.
-///
-/// # Errors
-///
-/// Returns the error raised locating or starting the test binary.
-fn run_self(search_path: Option<&str>, filter: &str) -> std::io::Result<std::process::Output> {
-    let mut command = std::process::Command::new(std::env::current_exe()?);
-    command.args([filter, "--nocapture"]);
-    if let Some(directories) = search_path {
-        command.env("PATH", directories);
-    }
-    command.output()
-}
-
-/// Returns how many tests the child reported passing.
-fn passed(stdout: &str) -> usize {
-    stdout
-        .lines()
-        .find_map(|line| line.strip_prefix("test result: ok. "))
-        .and_then(|rest| rest.split_whitespace().next())
-        .and_then(|count| count.parse().ok())
-        .unwrap_or(0)
-}
-
-/// With no `make` on `PATH`, every make-backed test skips, succeeds and says
-/// why on stderr, so the skip is proved end to end and not only by its parts.
-#[test]
-fn a_host_without_make_skips_every_make_backed_test() {
-    let output = run_self(
-        Some("/nonexistent-no-make-here"),
-        "make_probe::the_reader_agrees",
-    )
-    .expect("the test binary must run");
-    let stdout = String::from_utf8_lossy(&output.stdout);
-    let stderr = String::from_utf8_lossy(&output.stderr);
-    assert!(
-        output.status.success(),
-        "the child failed: {stdout}{stderr}"
-    );
-    let ran = passed(&stdout);
-    assert!(ran > 0, "the child ran no make-backed test: {stdout}");
-    let skips = stderr.matches("skipped: make could not be run").count();
-    assert_eq!(
-        skips, ran,
-        "every make-backed test must say why it skipped: {stderr}"
-    );
-}
-
-/// With GNU make on `PATH`, the same tests run for real and print no skip.
-#[test]
-fn a_host_with_make_runs_the_make_backed_tests() {
-    if stop_without_gnu_make().expect("stderr must be writable") {
-        return;
-    }
-    let output = run_self(None, "make_probe::the_reader_agrees").expect("the test binary must run");
-    let stdout = String::from_utf8_lossy(&output.stdout);
-    let stderr = String::from_utf8_lossy(&output.stderr);
-    assert!(
-        output.status.success(),
-        "the child failed: {stdout}{stderr}"
-    );
-    assert!(
-        passed(&stdout) > 0,
-        "the child ran no make-backed test: {stdout}"
-    );
-    assert!(
-        !stderr.contains("skipped:"),
-        "a host with make skipped: {stderr}"
-    );
 }
