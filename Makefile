@@ -1,5 +1,6 @@
-.PHONY: help all clean test build release coverage lint fmt check-fmt \ test-workflow-contracts
+.PHONY: help all clean test build release coverage lint fmt check-fmt \
 	markdownlint nixie audit rust-audit spelling
+.PHONY: test-workflow-contracts
 
 SHELL := bash
 
@@ -141,4 +142,4 @@ dev-test: ## Run tests with Cranelift and mold
 
 test-workflow-contracts: ## Validate the CodeScene coverage workflow contract (CV-005)
 	$(CV005_CONTRACTS) check --repository .
-	$(UV_ENV) $(UV) run --with 'pytest>=8' --with 'pyyaml>=6' pytest tests/workflow_contracts -q
+	$(UV_ENV) $(UV) run --python 3.13 --with 'pytest>=8,<10' --with 'pyyaml>=6,<7' pytest tests/workflow_contracts -q

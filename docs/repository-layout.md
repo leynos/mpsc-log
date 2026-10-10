@@ -17,6 +17,7 @@ compact and omits build output such as `target/`.
 │   ├── dependabot.yml
 │   └── workflows/
 │       ├── ci.yml
+│       ├── coverage-main.yml
 
 │       └── release.yml
 
@@ -53,6 +54,9 @@ compact and omits build output such as `target/`.
 - `.github/dependabot.yml`: Configures automated dependency update checks.
 - `.github/workflows/ci.yml`: Runs the generated project's continuous
   integration checks.
+- `.github/workflows/coverage-main.yml`: Publishes coverage from `main`,
+  uploading to CodeScene (a missing token is recorded as a notice) and writing
+  the ratchet baseline.
 
 - `.github/workflows/release.yml`: Builds and publishes binary release
   artefacts for the application flavour.
