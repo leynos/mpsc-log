@@ -252,21 +252,40 @@ fn a_comment_on_the_with_key_is_accepted() {
     assert_eq!(problems(&fixture(commented, "")), Vec::<String>::new());
 }
 
-#[test]
-fn a_deeper_indented_comment_does_not_set_the_entry_indent() {
-    let commented = "        with:\n            # a deeper comment\n          install-mold: \
-                     'false'\n          note: |\n            install-mold: 'true'\n            \
-                     install-clang-lld: 'true'\n";
-
-    assert_eq!(problems(&fixture(commented, "")).len(), 2);
+#[rstest]
+#[case::deeper_comment_first(
+    "        with:\n            # a deeper comment\n          install-mold: 'false'\n          \
+     note: |\n            install-mold: 'true'\n            install-clang-lld: 'true'\n"
+)]
+#[case::block_scalar_lookalike(
+    "        with:\n          install-mold: 'false'\n          note: |\n            install-mold: \
+     'true'\n            install-clang-lld: 'true'\n"
+)]
+fn a_scalar_lookalike_does_not_set_an_input(#[case] with_block: &str) {
+    assert_eq!(problems(&fixture(with_block, "")).len(), 2);
 }
 
 #[test]
-fn an_input_inside_another_inputs_block_scalar_does_not_count() {
-    let nested = "        with:\n          install-mold: 'false'\n          note: |\n            \
-                  install-mold: 'true'\n            install-clang-lld: 'true'\n";
+fn trailing_comments_on_the_entries_are_accepted() {
+    let commented = "        with:\n          install-mold: 'true' # for dev builds\n          \
+                     install-clang-lld: 'true' # for coverage\n";
 
-    assert_eq!(problems(&fixture(nested, "")).len(), 2);
+    assert_eq!(problems(&fixture(commented, "")), Vec::<String>::new());
+}
+
+#[test]
+fn a_commented_out_input_is_still_missing() {
+    let commented =
+        "        with:\n          install-mold: 'true'\n          # install-clang-lld: 'true'\n";
+
+    let found = problems(&fixture(commented, ""));
+
+    assert!(
+        found
+            .iter()
+            .any(|problem| problem.contains("install-clang-lld")),
+        "expected install-clang-lld to be reported, got {found:?}"
+    );
 }
 
 #[test]
