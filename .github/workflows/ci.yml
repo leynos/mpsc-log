@@ -18,15 +18,10 @@ jobs:
         with:
           persist-credentials: false
       - name: Setup Rust
-        uses: leynos/shared-actions/.github/actions/setup-rust@d99a5e2aeba9c2164a70549f00540d0bd12a573b
-      - name: Install mold linker
-        if: runner.os == 'Linux'
-        run: |
-          set -euo pipefail
-          export DEBIAN_FRONTEND=noninteractive
-          # mold accelerates dev builds; coverage uses lld for llvm-tools compatibility.
-          sudo apt-get update \
-            && sudo apt-get install --yes --no-install-recommends clang lld mold
+        uses: leynos/shared-actions/.github/actions/setup-rust@03ef8cdcea566bd1d34fac511f27928cf763c7d5
+        with:
+          install-mold: 'true'
+          install-clang-lld: 'true'
       - name: Install mdtablefix
         # `make check-fmt` runs `mdtablefix --check --git`; 0.6.0 is the
         # first release with `--check` and `--git`.

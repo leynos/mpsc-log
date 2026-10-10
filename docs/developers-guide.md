@@ -186,6 +186,14 @@ LLVM-compatible linker behaviour.
 Install `clang`, `lld`, `mold`, `python3`, and `cargo-audit` before running the
 full generated workflow locally on Linux.
 
+CI does not install the linkers with its own `apt-get` step. The `Setup Rust`
+step in `.github/workflows/ci.yml` passes `install-mold: 'true'` and
+`install-clang-lld: 'true'` to the pinned `leynos/shared-actions` `setup-rust`
+action, which installs `mold`, `clang`, and `lld` on Linux and fails the job
+unless each tool resolves on `PATH`. Both inputs skip with a notice on other
+platforms. The action sets no linker flag, so `.cargo/config.toml` and the
+coverage step's environment still choose which linker runs.
+
 ### Security audit ignores
 
 Security audit jobs may set `CARGO_AUDIT_IGNORES` for narrowly scoped RustSec
