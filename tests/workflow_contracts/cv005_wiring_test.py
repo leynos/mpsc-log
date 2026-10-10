@@ -31,10 +31,10 @@ FULL_COMMIT = re.compile(r"[0-9a-f]{40}")
 PIN = re.compile(r"^CV005_CONTRACTS_REF \?= (\S+)$", re.MULTILINE)
 
 
-def _make_n(target: str) -> str:
-    """Return the commands ``make -n TARGET`` would run."""
+def _make_n(target: str, *overrides: str) -> str:
+    """Return the commands ``make -n TARGET [OVERRIDE=...]`` would run."""
     result = subprocess.run(
-        ["make", "-n", target],
+        ["make", "-n", target, *overrides],
         cwd=ROOT,
         capture_output=True,
         text=True,
@@ -102,16 +102,10 @@ def test_both_contract_runs_use_the_configured_uv() -> None:
     A caller whose ``uv`` is not on ``PATH`` sets ``UV``; a run that calls a
     literal ``uv`` would ignore it.
     """
-    result = subprocess.run(
-        ["make", "-n", TARGET, "UV=/opt/injected/uv", "UV_ENV=INJECTED=1"],
-        cwd=ROOT,
-        capture_output=True,
-        text=True,
-        check=True,
-    )
+    output = _make_n(TARGET, "UV=/opt/injected/uv", "UV_ENV=INJECTED=1")
     runs = [
         line
-        for line in result.stdout.splitlines()
+        for line in output.splitlines()
         if "cv005-contracts" in line or "pytest" in line
     ]
     assert len(runs) == 2, runs
