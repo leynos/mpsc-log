@@ -106,7 +106,7 @@ fn sets_input(inputs: &[&str], key: &str) -> bool {
     let wanted = format!("{key}: 'true'");
     let Some(entry_indent) = inputs
         .iter()
-        .find(|line| !line.trim().is_empty())
+        .find(|line| !line.trim().is_empty() && !line.trim_start().starts_with('#'))
         .map(|line| indent(line))
     else {
         return false;
@@ -250,6 +250,15 @@ fn a_comment_on_the_with_key_is_accepted() {
          install-clang-lld: 'true'\n";
 
     assert_eq!(problems(&fixture(commented, "")), Vec::<String>::new());
+}
+
+#[test]
+fn a_deeper_indented_comment_does_not_set_the_entry_indent() {
+    let commented = "        with:\n            # a deeper comment\n          install-mold: \
+                     'false'\n          note: |\n            install-mold: 'true'\n            \
+                     install-clang-lld: 'true'\n";
+
+    assert_eq!(problems(&fixture(commented, "")).len(), 2);
 }
 
 #[test]
