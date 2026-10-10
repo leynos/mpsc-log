@@ -68,6 +68,19 @@ fn setup_rust_step(workflow: &str) -> Option<Vec<&str>> {
     Some(step)
 }
 
+/// Returns the line without a trailing YAML comment, which starts at a `#`
+/// preceded by whitespace.
+fn without_comment(line: &str) -> &str {
+    let mut previous_is_space = false;
+    for (at, c) in line.char_indices() {
+        if c == '#' && previous_is_space {
+            return line.get(..at).unwrap_or(line);
+        }
+        previous_is_space = c.is_whitespace();
+    }
+    line
+}
+
 /// Returns the lines of the step's `with:` mapping, which is where the action
 /// reads its inputs. A line is in the mapping while it is indented deeper than
 /// the `with:` key; an `env:` or `run:` block is a different mapping.
@@ -75,7 +88,7 @@ fn with_block<'a>(step: &[&'a str]) -> Vec<&'a str> {
     let base = step.first().map_or(0, |first| key_line(first).1);
     let Some(opening) = step
         .iter()
-        .position(|line| line.trim() == "with:" && indent(line) == base)
+        .position(|line| without_comment(line).trim() == "with:" && indent(line) == base)
     else {
         return Vec::new();
     };
@@ -86,10 +99,21 @@ fn with_block<'a>(step: &[&'a str]) -> Vec<&'a str> {
         .collect()
 }
 
-/// Returns whether the `with:` mapping sets `key` to the string `'true'`.
+/// Returns whether the `with:` mapping sets `key` to the string `'true'` as a
+/// direct entry. Lines nested deeper, such as the body of a block scalar
+/// belonging to another input, are not entries of the mapping.
 fn sets_input(inputs: &[&str], key: &str) -> bool {
     let wanted = format!("{key}: 'true'");
-    inputs.iter().any(|line| line.trim() == wanted)
+    let Some(entry_indent) = inputs
+        .iter()
+        .find(|line| !line.trim().is_empty())
+        .map(|line| indent(line))
+    else {
+        return false;
+    };
+    inputs
+        .iter()
+        .any(|line| indent(line) == entry_indent && without_comment(line).trim() == wanted)
 }
 
 /// Returns the workflow's shell lines with each backslash continuation joined
@@ -99,7 +123,12 @@ fn logical_lines(workflow: &str) -> Vec<String> {
     let mut pending = String::new();
     for line in workflow.lines() {
         let trimmed = line.trim();
-        if let Some(head) = trimmed.strip_suffix('\\') {
+        // A comment line is never continued: a trailing backslash in it does not
+        // join the command on the next line.
+        if trimmed.starts_with('#') {
+            joined.push(std::mem::take(&mut pending));
+            joined.push(trimmed.to_owned());
+        } else if let Some(head) = trimmed.strip_suffix('\\') {
             pending.push_str(head);
             pending.push(' ');
         } else {
@@ -205,6 +234,38 @@ fn an_apt_install_split_across_shell_lines_is_reported() {
                  install --yes \\\n            clang lld mold\n";
 
     let found = problems(&fixture(BOTH, split));
+
+    assert!(
+        found
+            .iter()
+            .any(|problem| problem.starts_with("hand-rolled install")),
+        "expected a hand-rolled install, got {found:?}"
+    );
+}
+
+#[test]
+fn a_comment_on_the_with_key_is_accepted() {
+    let commented =
+        "        with: # install the linkers\n          install-mold: 'true'\n          \
+         install-clang-lld: 'true'\n";
+
+    assert_eq!(problems(&fixture(commented, "")), Vec::<String>::new());
+}
+
+#[test]
+fn an_input_inside_another_inputs_block_scalar_does_not_count() {
+    let nested = "        with:\n          install-mold: 'false'\n          note: |\n            \
+                  install-mold: 'true'\n            install-clang-lld: 'true'\n";
+
+    assert_eq!(problems(&fixture(nested, "")).len(), 2);
+}
+
+#[test]
+fn a_command_after_a_comment_ending_in_a_backslash_is_still_read() {
+    let tricky = "      - name: Install\n        run: |\n          # note \\\n          sudo \
+                  apt-get install --yes mold\n";
+
+    let found = problems(&fixture(BOTH, tricky));
 
     assert!(
         found
