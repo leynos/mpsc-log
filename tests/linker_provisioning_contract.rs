@@ -68,17 +68,57 @@ fn setup_rust_step(workflow: &str) -> Option<Vec<&str>> {
     Some(step)
 }
 
-/// Returns whether the step sets `key` to the string `'true'` outside a comment.
-fn sets_input(step: &[&str], key: &str) -> bool {
-    let wanted = format!("{key}: 'true'");
-    step.iter().any(|line| line.trim() == wanted)
+/// Returns the lines of the step's `with:` mapping, which is where the action
+/// reads its inputs. A line is in the mapping while it is indented deeper than
+/// the `with:` key; an `env:` or `run:` block is a different mapping.
+fn with_block<'a>(step: &[&'a str]) -> Vec<&'a str> {
+    let base = step.first().map_or(0, |first| key_line(first).1);
+    let Some(opening) = step
+        .iter()
+        .position(|line| line.trim() == "with:" && indent(line) == base)
+    else {
+        return Vec::new();
+    };
+    step.iter()
+        .skip(opening + 1)
+        .take_while(|line| line.trim().is_empty() || indent(line) > base)
+        .copied()
+        .collect()
 }
 
-/// Returns the lines that apt-install clang, lld or mold by hand.
-fn hand_installs(workflow: &str) -> Vec<&str> {
-    workflow
-        .lines()
-        .filter(|line| !line.trim_start().starts_with('#'))
+/// Returns whether the `with:` mapping sets `key` to the string `'true'`.
+fn sets_input(inputs: &[&str], key: &str) -> bool {
+    let wanted = format!("{key}: 'true'");
+    inputs.iter().any(|line| line.trim() == wanted)
+}
+
+/// Returns the workflow's shell lines with each backslash continuation joined
+/// to the line it continues, so a command split across lines reads as one.
+fn logical_lines(workflow: &str) -> Vec<String> {
+    let mut joined = Vec::new();
+    let mut pending = String::new();
+    for line in workflow.lines() {
+        let trimmed = line.trim();
+        if let Some(head) = trimmed.strip_suffix('\\') {
+            pending.push_str(head);
+            pending.push(' ');
+        } else {
+            pending.push_str(trimmed);
+            joined.push(std::mem::take(&mut pending));
+        }
+    }
+    if !pending.is_empty() {
+        joined.push(pending);
+    }
+    joined
+}
+
+/// Returns the commands that apt-install clang, lld or mold by hand, even when
+/// the package names sit on a continuation line.
+fn hand_installs(workflow: &str) -> Vec<String> {
+    logical_lines(workflow)
+        .into_iter()
+        .filter(|line| !line.starts_with('#'))
         .filter(|line| line.contains("apt-get") && line.contains("install"))
         .filter(|line| {
             line.split(|c: char| !c.is_ascii_alphanumeric())
@@ -92,15 +132,16 @@ fn problems(workflow: &str) -> Vec<String> {
     let Some(step) = setup_rust_step(workflow) else {
         return vec!["no setup-rust step pinned to a full commit SHA".to_owned()];
     };
+    let inputs = with_block(&step);
     let mut found: Vec<String> = LINKER_INPUTS
         .iter()
-        .filter(|key| !sets_input(&step, key))
+        .filter(|key| !sets_input(&inputs, key))
         .map(|key| format!("setup-rust does not set {key}: 'true'"))
         .collect();
     found.extend(
         hand_installs(workflow)
             .into_iter()
-            .map(|line| format!("hand-rolled install: {}", line.trim())),
+            .map(|line| format!("hand-rolled install: {line}")),
     );
     found
 }
@@ -147,6 +188,29 @@ fn a_step_missing_an_input_is_reported(#[case] with_block: &str, #[case] missing
     assert!(
         found.iter().any(|problem| problem.contains(missing)),
         "expected a problem naming {missing}, got {found:?}"
+    );
+}
+
+#[test]
+fn inputs_under_env_rather_than_with_do_not_count() {
+    let under_env =
+        "        env:\n          install-mold: 'true'\n          install-clang-lld: 'true'\n";
+
+    assert_eq!(problems(&fixture(under_env, "")).len(), 2);
+}
+
+#[test]
+fn an_apt_install_split_across_shell_lines_is_reported() {
+    let split = "      - name: Install mold linker\n        run: |\n          sudo apt-get \
+                 install --yes \\\n            clang lld mold\n";
+
+    let found = problems(&fixture(BOTH, split));
+
+    assert!(
+        found
+            .iter()
+            .any(|problem| problem.starts_with("hand-rolled install")),
+        "expected a hand-rolled install, got {found:?}"
     );
 }
 
