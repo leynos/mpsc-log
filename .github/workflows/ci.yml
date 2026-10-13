@@ -18,14 +18,14 @@ jobs:
         with:
           persist-credentials: false
       - name: Setup Rust
-        uses: leynos/shared-actions/.github/actions/setup-rust@2ddf19b3fd52c0f1089db0d57b015f859b80ab67
+        uses: leynos/shared-actions/.github/actions/setup-rust@aea9c14c24b73042e99f0be8245a4f171b67c31a
         with:
           install-mold: 'true'
           install-clang-lld: 'true'
       - name: Install mdtablefix
         # `make check-fmt` runs `mdtablefix --check --git`; 0.6.0 is the
         # first release with `--check` and `--git`.
-        uses: leynos/shared-actions/.github/actions/install-mdtablefix@2ddf19b3fd52c0f1089db0d57b015f859b80ab67
+        uses: leynos/shared-actions/.github/actions/install-mdtablefix@aea9c14c24b73042e99f0be8245a4f171b67c31a
         with:
           version: "0.6.1"
 
@@ -60,7 +60,7 @@ jobs:
         with:
           python-version: '3.x'
       - name: Install Whitaker
-        uses: leynos/shared-actions/.github/actions/install-whitaker@2ddf19b3fd52c0f1089db0d57b015f859b80ab67
+        uses: leynos/shared-actions/.github/actions/install-whitaker@aea9c14c24b73042e99f0be8245a4f171b67c31a
         with:
           cranelift: true
       - name: Audit dependencies
@@ -77,7 +77,7 @@ jobs:
       - name: Workflow contract tests
         run: make test-workflow-contracts
       - name: Test and Measure Coverage
-        uses: leynos/shared-actions/.github/actions/generate-coverage@2ddf19b3fd52c0f1089db0d57b015f859b80ab67
+        uses: leynos/shared-actions/.github/actions/generate-coverage@aea9c14c24b73042e99f0be8245a4f171b67c31a
         env:
           CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_LINKER: clang
           RUSTFLAGS: -C link-arg=-fuse-ld=lld
