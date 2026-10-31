@@ -1,31 +1,20 @@
-# Canonical opt-in Cargo configuration fragment for accelerated local debug
-# builds.
+# Cargo configuration fragment that selects the Cranelift backend for the
+# make targets' development builds.
 #
-# This configuration is deliberately kept out of `.cargo/config.toml`.
-# Cargo auto-discovers that path, so anything placed there applies to
-# release packaging, coverage, and verification builds, which must keep
-# the supported LLVM backend and platform linker. In a consuming
-# repository this fragment lives at `tools/dev-fast/config.toml` and is
-# passed explicitly with `cargo --config tools/dev-fast/config.toml ...`
-# from `make dev-build` and `make dev-test`.
-#
-# Repositories that set repository-wide `rustflags` in `.cargo/config.toml`
-# must restate them in the target table below. Cargo joins the rustflags of
-# every matching `[target.*]` entry (target-triple and `cfg` tables alike),
-# but the joined target rustflags take precedence over `[build].rustflags`
-# rather than merging with it.
+# The build standard's flags (the parallel frontend and, on Linux, the mold
+# linker) live in `.cargo/config.toml`, which Cargo discovers on its own. The
+# backend cannot: the release workflow builds with `cross +stable build
+# --release`, stable Cargo reads `.cargo/config.toml` too, and it refuses a
+# `[profile.dev] codegen-backend` key ("config profile `dev` is not valid").
+# So the backend lives here, passed explicitly with
+# `cargo --config tools/dev-fast/config.toml ...` by the standard make targets,
+# and never by coverage or release builds. See "The build standard" in
+# docs/developers-guide.md.
 
 [unstable]
 codegen-backend = true
 
 # Cranelift trades runtime performance for compile speed, so it applies to
-# the dev profile only. The `make dev-*` targets never build release
-# artefacts.
+# the dev profile only.
 [profile.dev]
 codegen-backend = "cranelift"
-
-# mold ships for Linux only, so the flag is gated behind a target `cfg`. On
-# macOS and Windows the table simply does not apply and the platform default
-# linker is used.
-[target.'cfg(target_os = "linux")']
-rustflags = ["-Clink-arg=-fuse-ld=mold"]
