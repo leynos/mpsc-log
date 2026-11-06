@@ -204,33 +204,24 @@ assigned too. The CI doctest step restates the flags beside its deny.
 
 On Linux, install `mold` before building: the configuration names it, so a
 build without it fails at link time. CI installs it through `setup-rust`'s
-`install-mold` input. `tests/build_standard_contract.rs` holds the standard. It
-reads the configuration sources, the commands `make -n` prints for each
-development target on a Linux host and a macOS host (each keeping the caller's
-own `RUSTFLAGS`) and for each coverage and release target on a Linux host, and
-the `setup-rust` steps of the CI workflows (each must pass `install-mold`), so
-a flag lost through a recipe or workflow edit fails there.
-`tests/ci_doctest_flags_contract.rs` holds the doctest step's flags.
+`install-mold` input. The Concordat `rust-build-defaults` rule is the check for
+the standard: it reads the configuration sources, the Makefile recipes and the
+workflow steps, so a flag lost through a recipe or workflow edit fails there.
 
 ### Cranelift
 
 Exception: Cranelift is not the default backend in `.cargo/config.toml`. The
-repository pins `nightly-2026-10-30`, but the release workflow
+repository pins a nightly in `rust-toolchain.toml`, but the release workflow
 (`cross +stable build --release`) builds on a stable toolchain against
 `.cargo/config.toml`, and stable Cargo refuses a
 `[profile.dev] codegen-backend` key ("config profile `dev` is not valid"), so a
 backend selected there would break every release (recorded 2026-10-31). The
 standard make targets select Cranelift instead, by passing
 `--config tools/dev-fast/config.toml`, which holds only the backend selection;
-coverage and release builds never pass it. `tests/build_backend_contract.rs`
-fails if a `codegen-backend` key reaches `.cargo/config.toml` while the release
-builds on `+stable`, and `tests/stable_cargo_config.rs` asks stable Cargo
-itself, through `rustup run stable cargo build --release --bin no-such-bin`,
-whether it accepts the configuration. The probe must run on stable, because a
-nightly Cargo accepts a backend that stable refuses, so the test needs the
-stable toolchain installed
-(`rustup toolchain install stable --profile minimal`); CI installs it before
-the tests run. Revisit if the release moves to the pinned nightly.
+coverage and release builds never pass it. Keep any `codegen-backend` key out of
+`.cargo/config.toml` while the release builds on `+stable`; the Concordat rule
+BD-004 records this exception. Revisit if the release moves to the pinned
+nightly.
 
 ### Development build footprint
 
@@ -246,11 +237,8 @@ development build and every rebuild recompiles whole crates. To debug, run with
 2026-07-31, so Cargo coordinates metadata output itself. No raw rustc metadata
 flags are used, and the pin is not moved to suit the key. Whoever moves the pin
 across a boundary of the rule must switch the key to match the new pin family.
-Stable Cargo, which builds the release, ignores the `[unstable]` table.
-`tests/footprint_contract.rs` asks Cargo itself (`--unit-graph` and
-`config get`, which compile nothing) for the effective profiles and the key, so
-an override in any configuration file Cargo merges is caught as well as the
-manifest's own table.
+Stable Cargo, which builds the release, ignores the `[unstable]` table. The
+Concordat `rust-dev-build-footprint` rule is the check for these settings.
 
 Install `clang`, `lld`, `mold`, `python3`, and `cargo-audit` before running the
 full generated workflow locally on Linux.
