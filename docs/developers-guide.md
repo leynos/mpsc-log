@@ -171,8 +171,9 @@ dependency.
 ## Tooling
 
 Development builds use the build standard described below: `-Zthreads=8` and,
-on Linux, clang linking with `mold`, from `.cargo/config.toml`. The standard
-make targets also select the Cranelift backend by passing
+on Linux, linking with `mold` (driven by clang on `x86_64-unknown-linux-gnu`;
+other Linux targets use their default driver), from `.cargo/config.toml`. The
+standard make targets also select the Cranelift backend by passing
 `--config tools/dev-fast/config.toml`, as do `make dev-build` and
 `make dev-test`; that fragment holds only the backend selection and is never
 applied to release, coverage, or verification builds. `rust-toolchain.toml`
