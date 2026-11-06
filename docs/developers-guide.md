@@ -215,8 +215,10 @@ repository pins a nightly in `rust-toolchain.toml`, but the release workflow
 (`cross +stable build --release`) builds on a stable toolchain against
 `.cargo/config.toml`, and stable Cargo refuses a
 `[profile.dev] codegen-backend` key ("config profile `dev` is not valid"), so a
-backend selected there would break every release (recorded 2026-10-31). The
-standard make targets select Cranelift instead, by passing
+backend selected there would break every release (recorded 2026-10-31).
+Measured on `nightly-2026-11-05` on 2026-11-06: `make test`, which passes the
+fragment, runs the full suite (219 tests) under Cranelift and every test
+passes. The standard make targets select Cranelift instead, by passing
 `--config tools/dev-fast/config.toml`, which holds only the backend selection;
 coverage and release builds never pass it. Keep any `codegen-backend` key out of
 `.cargo/config.toml` while the release builds on `+stable`; the Concordat rule
