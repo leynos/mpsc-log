@@ -170,18 +170,78 @@ dependency.
 
 ## Tooling
 
-Development builds use the standard LLVM backend for debug code generation. On
-Linux targets, `.cargo/config.toml` configures clang to link with `mold` so
-debug builds link quickly. An opt-in accelerated path, `make dev-build` and
-`make dev-test`, applies the Cranelift codegen backend via
-`tools/dev-fast/config.toml`; it requires a nightly toolchain and is never
+Development builds use the build standard described below: `-Zthreads=8` and,
+on Linux, linking with `mold` (driven by clang on `x86_64-unknown-linux-gnu`;
+other Linux targets use their default driver), from `.cargo/config.toml`. The
+standard make targets also select the Cranelift backend by passing
+`--config tools/dev-fast/config.toml`, as do `make dev-build` and
+`make dev-test`; that fragment holds only the backend selection and is never
 applied to release, coverage, or verification builds. `rust-toolchain.toml`
 retains the `llvm-tools-preview` and `rustc-codegen-cranelift-preview`
-components so this opt-in path and `make coverage` work without an extra
-`rustup component add`; `tools/dev-fast/config.toml` is what actually switches
-the codegen backend on for a given invocation, not the toolchain pin itself.
-Coverage generation uses `lld` because LLVM coverage tooling expects
-LLVM-compatible linker behaviour.
+components so both paths work without an extra `rustup component add`;
+`tools/dev-fast/config.toml` is what actually switches the codegen backend on
+for a given invocation, not the toolchain pin itself. Coverage generation uses
+`lld` because LLVM coverage tooling expects LLVM-compatible linker behaviour.
+
+### The build standard
+
+Development, test, lint, and typecheck builds use the parallel `rustc` frontend
+(`-Zthreads=8`) and, on Linux, the `mold` linker (`-Clink-arg=-fuse-ld=mold`).
+These are defaults in `.cargo/config.toml`, which Cargo discovers on its own,
+so a bare `cargo build` gets them. `mold` ships for Linux only, so the linker
+flag lives in a Linux-only table and macOS and Windows keep their platform
+linker. Cargo selects one `rustflags` source rather than merging them, so every
+source repeats the same flags apart from the linker.
+
+An assigned `RUSTFLAGS` replaces the configuration's flags, so the Makefile
+recipes that set it compose the standard's flags onto any inherited value (CI's
+`setup-rust` exports one). Two builds are deliberately excluded: coverage
+assigns `RUSTFLAGS` without the fast flags, because a measurement should not
+depend on them, and the release recipe and workflow keep the platform linker,
+because they assign `RUSTFLAGS` (even an empty value displaces the
+configuration). Cargo has no per-profile `rustflags`, so a direct
+`cargo build --release` takes the configuration's flags unless `RUSTFLAGS` is
+assigned too. The CI doctest step restates the flags beside its deny.
+
+On Linux, install `mold` before building: the configuration names it, so a
+build without it fails at link time. CI installs it through `setup-rust`'s
+`install-mold` input. The Concordat `rust-build-defaults` rule is the check for
+the standard: it reads the configuration sources, the Makefile recipes and the
+workflow steps, so a flag lost through a recipe or workflow edit fails there.
+
+### Cranelift
+
+Exception: Cranelift is not the default backend in `.cargo/config.toml`. The
+repository pins a nightly in `rust-toolchain.toml`, but the release workflow
+(`cross +stable build --release`) builds on a stable toolchain against
+`.cargo/config.toml`, and stable Cargo refuses a
+`[profile.dev] codegen-backend` key ("config profile `dev` is not valid"), so a
+backend selected there would break every release (recorded 2026-10-31).
+Measured on `nightly-2026-11-05` on 2026-11-06: `make test`, which passes the
+fragment, runs the full suite (219 tests) under Cranelift and every test
+passes. The standard make targets select Cranelift instead, by passing
+`--config tools/dev-fast/config.toml`, which holds only the backend selection;
+coverage and release builds never pass it. Keep any `codegen-backend` key out of
+`.cargo/config.toml` while the release builds on `+stable`; the Concordat rule
+BD-004 records this exception. Revisit if the release moves to the pinned
+nightly.
+
+### Development build footprint
+
+The repository follows the estate's `rust-dev-build-footprint` rule.
+`Cargo.toml`'s default development profile sets `incremental = false` and
+`debug = 0`, and the test profile inherits both, so builds keep no incremental
+state and no debug information and write far fewer intermediate artefacts. The
+trade-off is that a debugger sees no symbols or line tables in a default
+development build and every rebuild recompiles whole crates. To debug, run with
+`CARGO_PROFILE_DEV_DEBUG=true`; to rebuild incrementally, set
+`CARGO_INCREMENTAL=1`. `.cargo/config.toml` also sets
+`[unstable] embed-metadata = false`, the native Cargo key for nightlies from
+2026-07-31, so Cargo coordinates metadata output itself. No raw rustc metadata
+flags are used, and the pin is not moved to suit the key. Whoever moves the pin
+across a boundary of the rule must switch the key to match the new pin family.
+Stable Cargo, which builds the release, ignores the `[unstable]` table. The
+Concordat `rust-dev-build-footprint` rule is the check for these settings.
 
 Install `clang`, `lld`, `mold`, `python3`, and `cargo-audit` before running the
 full generated workflow locally on Linux.

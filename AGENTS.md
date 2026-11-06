@@ -401,12 +401,14 @@ collaboration.
 
 ## Fast development builds
 
-`make dev-build` and `make dev-test` compile with the opt-in Cranelift backend
-and the mold linker configured in `tools/dev-fast/config.toml`. They require a
-nightly toolchain and, on Linux, a `mold` binary on the `PATH`. The fragment is
-passed explicitly with `--config`, so release, coverage, and verification
-builds are unaffected; never copy its contents into `.cargo/config.toml`, which
-Cargo applies to every build.
+`make dev-build` and `make dev-test` compile with the Cranelift backend
+configured in `tools/dev-fast/config.toml`. They require a nightly toolchain
+and, on Linux, a `mold` binary on the `PATH`: the parallel frontend and the
+`mold` linker come from `.cargo/config.toml`, which every build discovers. The
+fragment holds only the backend selection and is passed explicitly with
+`--config`, so release, coverage, and verification builds are unaffected; never
+copy its contents into `.cargo/config.toml`, which Cargo applies to every
+build, and stable Cargo refuses the backend key there.
 
 ## dev-fast is the standard development path
 
