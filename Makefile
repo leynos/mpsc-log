@@ -85,7 +85,31 @@ coverage: ## Generate lcov coverage with lld for llvm-tools compatibility
 		LDFLAGS="$(COVERAGE_LINKER_FLAGS)" \
 		$(CARGO) llvm-cov --lcov --output-path lcov.info $(TEST_FLAGS)
 
-lint: ## Run Clippy and the Whitaker Dylint suite with warnings denied
+# The repository's only Python is the CV-005 workflow contract test under
+# tests/. Interrogate scans each target recursively, subject to its default
+# exclusions.
+INTERROGATE_VERSION ?= 1.7.0
+INTERROGATE_TARGETS ?= tests
+# Level 2 prints a MISSED row per undocumented definition, which the
+# `interrogate` target fails on: the rounded percentage alone can pass a lone gap.
+INTERROGATE_FLAGS ?= -vv --fail-under 100
+INTERROGATE ?= $(UV_ENV) $(UV) tool run --python 3.13 --from 'interrogate==$(INTERROGATE_VERSION)' interrogate
+
+# Interrogate rounds its percentage to one decimal, so `--fail-under 100` alone
+# can pass a lone gap in a large repository; fail on any MISSED row as well.
+.PHONY: interrogate
+interrogate: ## Enforce complete Python docstring coverage
+	@report="$$($(INTERROGATE) $(INTERROGATE_FLAGS) $(INTERROGATE_TARGETS))"; \
+	  status=$$?; \
+	  printf '%s\n' "$$report"; \
+	  test "$$status" -eq 0 || exit "$$status"; \
+	  if printf '%s\n' "$$report" | grep -q '| *MISSED *|'; then \
+	    printf '%s\n' 'interrogate: undocumented definitions remain; see the MISSED rows above' >&2; \
+	    exit 1; \
+	  fi
+
+lint: ## Run Clippy, the Whitaker Dylint suite and the docstring gate
+	$(MAKE) --no-print-directory interrogate
 	RUSTDOCFLAGS="$(RUSTDOC_FLAGS)" RUSTFLAGS="$${RUSTFLAGS:+$$RUSTFLAGS }$(STANDARD_RUSTFLAGS)" $(CARGO) --config "$(DEV_FAST_CONFIG)" doc --no-deps
 	RUSTFLAGS="$${RUSTFLAGS:+$$RUSTFLAGS }$(STANDARD_RUSTFLAGS)" $(CARGO) --config "$(DEV_FAST_CONFIG)" clippy $(CLIPPY_FLAGS)
 	@echo "Whitaker binary: $(WHITAKER)"
