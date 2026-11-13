@@ -405,6 +405,4 @@ Development builds compile with the Cranelift backend, the parallel frontend
 and, on Linux, the `mold` linker, all set in `.cargo/config.toml`, which every
 `cargo` invocation discovers. They require the pinned nightly toolchain and a
 `mold` binary on the `PATH`. Release builds use LLVM, and `make coverage`
-selects LLVM explicitly. Stable Cargo cannot read `.cargo/config.toml`, so the
-MSRV check runs from outside the checkout; see `docs/developers-guide.md`,
-"Cranelift".
+selects LLVM explicitly. See `docs/developers-guide.md`, "Cranelift".

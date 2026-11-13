@@ -30,8 +30,7 @@ rustflags = ["-Zthreads=8", "-Clink-arg=-fuse-ld=mold"]
 # Dated nightlies from 2026-07-31 take the native Cargo key; raw rustc metadata
 # flags break build scripts and are not used. The same table enables the
 # codegen-backend key that selects Cranelift for development builds. Stable
-# Cargo refuses both, so only the pinned nightly may read this file: the MSRV
-# check runs from outside the checkout (see docs/developers-guide.md).
+# Cargo refuses both, so only the pinned nightly may read this file.
 [unstable]
 embed-metadata = false
 codegen-backend = true

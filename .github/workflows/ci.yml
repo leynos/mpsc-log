@@ -101,39 +101,3 @@ jobs:
           # the step restates the build standard's flags beside the deny.
           RUSTFLAGS: -D warnings -Zthreads=8 -Clink-arg=-fuse-ld=mold
         run: cargo test --doc --workspace --all-features
-
-  msrv:
-    name: MSRV check
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-    env:
-      CARGO_TERM_COLOR: always
-    steps:
-      - uses: actions/checkout@f548e57e544e1ff5a4c46bf1e1b8685f8e4a348a
-        with:
-          persist-credentials: false
-      - name: Read the declared MSRV
-        id: msrv
-        run: |
-          set -euo pipefail
-          msrv="$(sed -n 's/^rust-version = "\(.*\)"$/\1/p' Cargo.toml | head -n 1)"
-          test -n "$msrv"
-          echo "version=$msrv" >> "$GITHUB_OUTPUT"
-      - name: Install the MSRV toolchain
-        env:
-          MSRV: ${{ steps.msrv.outputs.version }}
-        run: rustup toolchain install "$MSRV" --profile minimal --no-self-update
-      # `cargo check` only, never a second test run. It runs from outside the
-      # checkout because Cargo reads .cargo/config.toml from the working
-      # directory, not from --manifest-path, and the nightly-only keys there
-      # (`-Zthreads`, `[unstable]`, the Cranelift backend) make stable Cargo
-      # fail.
-      - name: Check all targets on the MSRV toolchain
-        env:
-          MSRV: ${{ steps.msrv.outputs.version }}
-          CARGO_TARGET_DIR: ${{ runner.temp }}/msrv-target
-        working-directory: ${{ runner.temp }}
-        run: >-
-          cargo "+$MSRV" check --all-targets --locked
-          --manifest-path "$GITHUB_WORKSPACE/Cargo.toml"

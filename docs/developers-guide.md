@@ -213,19 +213,6 @@ nightly pinned in `rust-toolchain.toml`. Release builds use the same pinned
 nightly with LLVM, because the dev profile does not reach them. Coverage
 selects LLVM explicitly, since Cranelift cannot instrument coverage.
 
-The MSRV check (`rust-version` in `Cargo.toml`, the `msrv` job in
-`.github/workflows/ci.yml`) runs `cargo check --all-targets` on that stable
-toolchain from outside the checkout, with `--manifest-path`. This is
-deliberate. Cargo reads `.cargo/config.toml` from the working directory, not
-from the manifest's location, and stable Cargo cannot read this one: it refuses
-the `[unstable]` table's keys and the `[profile.dev] codegen-backend` key, and
-rejects the `-Zthreads` flag. Running the check inside the checkout fails, and
-moving the nightly-only settings out of the configuration to make it pass would
-undo the Cranelift default. Do not "fix" the job by running it in the checkout.
-The same applies locally: to check the MSRV, run
-`cd "$(mktemp -d)" && cargo +<msrv> check --all-targets --locked --manifest-path <checkout>/Cargo.toml`
-with `CARGO_TARGET_DIR` set outside the checkout.
-
 ### Development build footprint
 
 The repository follows the estate's `rust-dev-build-footprint` rule.

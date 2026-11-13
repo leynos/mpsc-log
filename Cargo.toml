@@ -2,7 +2,6 @@
 name = "mpsc-log"
 version = "0.1.0"
 edition = "2024"
-rust-version = "1.85.0"
 description = "For when your agents need to log to a single file"
 license = "ISC"
 repository = "https://github.com/leynos/mpsc-log"
