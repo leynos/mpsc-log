@@ -28,7 +28,15 @@ linker = "clang"
 rustflags = ["-Zthreads=8", "-Clink-arg=-fuse-ld=mold"]
 
 # Dated nightlies from 2026-07-31 take the native Cargo key; raw rustc metadata
-# flags break build scripts and are not used. The release workflow builds on
-# stable Cargo, which ignores this table.
+# flags break build scripts and are not used. The same table enables the
+# codegen-backend key that selects Cranelift for development builds. Stable
+# Cargo refuses both, so only the pinned nightly may read this file.
 [unstable]
 embed-metadata = false
+codegen-backend = true
+
+# Cranelift trades runtime performance for compile speed, so it applies to the
+# dev profile only. Release builds keep LLVM, and coverage selects LLVM
+# explicitly.
+[profile.dev]
+codegen-backend = "cranelift"

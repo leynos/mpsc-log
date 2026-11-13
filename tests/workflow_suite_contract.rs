@@ -101,7 +101,7 @@ fn suite_runs<'a>(
 #[case::make_dev_test("make dev-test", true)]
 #[case::quoted_target("make \"test\"", true)]
 #[case::cargo("cargo test --all-features", true)]
-#[case::cargo_config("cargo --config tools/dev-fast/config.toml test", true)]
+#[case::cargo_config("cargo --config build.jobs=2 test", true)]
 #[case::cargo_toolchain("cargo +nightly test", true)]
 #[case::nextest("cargo nextest run --all-targets", true)]
 #[case::llvm_cov("cargo llvm-cov nextest --lcov", true)]
