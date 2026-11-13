@@ -61,11 +61,11 @@ rather than importing the concrete API.
 
 - [Design](mpsc-log-design.md) specifies the CLI contract, record model,
   ports, adapters, write protocol, and rotation protocol.
-- [ADR 001: Lock file naming](adr-001-lock-file-naming.md) records how the
+- [ADR 001: Lock file naming](adrs/adr-0001-lock-file-naming.md) records how the
   journal lock path is derived and which suffixes are reserved.
-- [ADR 002: Testing strategy](adr-002-testing-strategy.md) records how the
+- [ADR 002: Testing strategy](adrs/adr-0002-testing-strategy.md) records how the
   required testing prongs apply to this design.
-- [ADR 003: `jo` field syntax and duplicate keys](adr-003-jo-field-syntax-and-duplicate-keys.md)
+- [ADR 003: `jo` field syntax and duplicate keys](adrs/adr-0003-jo-field-syntax-and-duplicate-keys.md)
   records the selected field syntax and last-wins duplicate-path semantics.
 
 ## Spelling policy

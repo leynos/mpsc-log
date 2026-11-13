@@ -6,9 +6,9 @@
 - **Companion documents:**
   - [Terms of reference](terms-of-reference.md).
   - [Context](context.md).
-  - [Lock file naming ADR](adr-001-lock-file-naming.md).
-  - [Testing strategy ADR](adr-002-testing-strategy.md).
-  - [`jo` field syntax ADR](adr-003-jo-field-syntax-and-duplicate-keys.md).
+  - [Lock file naming ADR](adrs/adr-0001-lock-file-naming.md).
+  - [Testing strategy ADR](adrs/adr-0002-testing-strategy.md).
+  - [`jo` field syntax ADR](adrs/adr-0003-jo-field-syntax-and-duplicate-keys.md).
   - [Event schema](mpsc-log-event-schema.json).
   - [Sidecar example](mpsc-log-sidecar.example.toml).
   - [Users' guide](users-guide.md).
@@ -42,7 +42,7 @@ construction, and duplicate object keys.[^jo] `mpsc-log` rejects array roots
 and builds an object-map `Record`, so duplicate paths resolve by last write
 rather than producing repeated textual JSON object names. That compatibility
 boundary is recorded in
-[ADR 003: `jo` field syntax and duplicate keys](adr-003-jo-field-syntax-and-duplicate-keys.md).
+[ADR 003: `jo` field syntax and duplicate keys](adrs/adr-0003-jo-field-syntax-and-duplicate-keys.md).
 
 The default `timestamp` field uses RFC 3339 UTC. RFC 3339 defines an Internet
 profile of ISO 8601 for timestamps, recommends UTC for interoperability, and
@@ -108,7 +108,7 @@ atomic-output integration, dependency risk, and portability.[^gzp] [^gzippy]
 - `mpsc-log` does not guarantee chronological record order by `timestamp`.
 - `mpsc-log` is `jo`-inspired rather than `jo` compatible: it omits `jo`
   formatting, pretty-printing, array-root, and version options; see section 5
-  and [ADR 003](adr-003-jo-field-syntax-and-duplicate-keys.md).
+  and [ADR 003](adrs/adr-0003-jo-field-syntax-and-duplicate-keys.md).
 
 ## 4. Architecture
 
@@ -168,10 +168,10 @@ arguments, the sidecar TOML, JSON serialization, the filesystem, and the
 `sysexits` mapping.
 
 The lock file is the coordination boundary. The naming decision is recorded in
-[ADR 001: Lock file naming](adr-001-lock-file-naming.md): `mpsc-log` appends
-`.lock` to the complete journal filename in the same directory, reserves
-`.lock` journal filenames, and rejects journal paths whose derived sidecar path
-would equal the journal path. Every invocation creates parent directories
+[ADR 001: Lock file naming](adrs/adr-0001-lock-file-naming.md): `mpsc-log`
+appends `.lock` to the complete journal filename in the same directory, reserves
+`.lock` journal filenames, and rejects journal paths whose derived sidecar
+path would equal the journal path. Every invocation creates parent directories
 first, opens the lock file with create semantics, acquires an exclusive lock,
 and only then reads configuration, repairs the journal tail, rotates,
 compresses, and appends.
@@ -611,9 +611,9 @@ The command writes nothing to standard output on success.
 ## 11. Correctness properties and verification
 
 The testing strategy is recorded in
-[ADR 002: Testing strategy](adr-002-testing-strategy.md). That ADR maps the
-repository's required unit, behavioural, snapshot, end-to-end, property-based,
-bounded-model, and proof prongs to the design surfaces below.
+[ADR 002: Testing strategy](adrs/adr-0002-testing-strategy.md). That ADR maps
+the repository's required unit, behavioural, snapshot, end-to-end,
+property-based, bounded-model, and proof prongs to the design surfaces below.
 
 The implementation must satisfy these properties:
 
