@@ -107,7 +107,7 @@ lint: ## Run Clippy, the Whitaker Dylint suite and the docstring gate
 	$(MAKE) --no-print-directory interrogate
 	RUSTDOCFLAGS="$(RUSTDOC_FLAGS)" RUSTFLAGS="$${RUSTFLAGS:+$$RUSTFLAGS }$(STANDARD_RUSTFLAGS)" $(CARGO) doc --no-deps
 	RUSTFLAGS="$${RUSTFLAGS:+$$RUSTFLAGS }$(STANDARD_RUSTFLAGS)" $(CARGO) clippy $(CLIPPY_FLAGS)
-	PATH="$(HOME)/.local/bin:$(USER_BIN_PATH):$(PATH)" CARGO_UNSTABLE_CODEGEN_BACKEND=true CARGO_PROFILE_DEV_CODEGEN_BACKEND=llvm RUSTFLAGS="-D warnings" whitaker --all -- $(CARGO_FLAGS)
+	PATH="$${XDG_BIN_HOME:-$(HOME)/.local/bin}:$(USER_BIN_PATH):$(PATH)" CARGO_UNSTABLE_CODEGEN_BACKEND=true CARGO_PROFILE_DEV_CODEGEN_BACKEND=llvm RUSTFLAGS="-D warnings" whitaker --all -- $(CARGO_FLAGS)
 
 typecheck: ## Type-check without building
 	RUSTFLAGS="$${RUSTFLAGS:+$$RUSTFLAGS }$(RUST_FLAGS) $(STANDARD_RUSTFLAGS)" $(CARGO) check $(CARGO_FLAGS)
