@@ -34,9 +34,6 @@ compact and omits build output such as `target/`.
 
 ├── tests/
 │   └── stub.rs
-├── tools/
-│   └── dev-fast/
-│       └── config.toml
 ├── AGENTS.md
 ├── Cargo.toml
 ├── LICENSE
@@ -81,10 +78,6 @@ compact and omits build output such as `target/`.
   behaviour.
 - `tests/stub.rs`: Keeps the generated test directory valid until real tests
   replace it.
-- `tools/dev-fast/config.toml`: Cargo configuration fragment selecting the
-  Cranelift codegen backend; passed explicitly by the standard make targets,
-  `make dev-build` and `make dev-test`, never applied to release, coverage, or
-  verification builds.
 - `AGENTS.md`: Provides repository-specific working instructions for agents and
   contributors.
 - `Cargo.toml`: Defines package metadata, dependencies, lint policy, and Cargo

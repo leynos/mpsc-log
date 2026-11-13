@@ -172,16 +172,12 @@ dependency.
 
 Development builds use the build standard described below: `-Zthreads=8` and,
 on Linux, linking with `mold` (driven by clang on `x86_64-unknown-linux-gnu`;
-other Linux targets use their default driver), from `.cargo/config.toml`. The
-standard make targets also select the Cranelift backend by passing
-`--config tools/dev-fast/config.toml`, as do `make dev-build` and
-`make dev-test`; that fragment holds only the backend selection and is never
-applied to release, coverage, or verification builds. `rust-toolchain.toml`
+other Linux targets use their default driver), from `.cargo/config.toml`, which
+also selects the Cranelift backend for the `dev` profile. `rust-toolchain.toml`
 retains the `llvm-tools-preview` and `rustc-codegen-cranelift-preview`
-components so both paths work without an extra `rustup component add`;
-`tools/dev-fast/config.toml` is what actually switches the codegen backend on
-for a given invocation, not the toolchain pin itself. Coverage generation uses
-`lld` because LLVM coverage tooling expects LLVM-compatible linker behaviour.
+components so Cranelift and LLVM coverage both work without an extra
+`rustup component add`. Coverage generation uses `lld` because LLVM coverage
+tooling expects LLVM-compatible linker behaviour.
 
 ### The build standard
 
@@ -211,20 +207,24 @@ workflow steps, so a flag lost through a recipe or workflow edit fails there.
 
 ### Cranelift
 
-Exception: Cranelift is not the default backend in `.cargo/config.toml`. The
-repository pins a nightly in `rust-toolchain.toml`, but the release workflow
-(`cross +stable build --release`) builds on a stable toolchain against
-`.cargo/config.toml`, and stable Cargo refuses a
-`[profile.dev] codegen-backend` key ("config profile `dev` is not valid"), so a
-backend selected there would break every release (recorded 2026-10-31).
-Measured on `nightly-2026-11-05` on 2026-11-06: `make test`, which passes the
-fragment, runs the full suite (219 tests) under Cranelift and every test
-passes. The standard make targets select Cranelift instead, by passing
-`--config tools/dev-fast/config.toml`, which holds only the backend selection;
-coverage and release builds never pass it. Keep any `codegen-backend` key out of
-`.cargo/config.toml` while the release builds on `+stable`; the Concordat rule
-BD-004 records this exception. Revisit if the release moves to the pinned
-nightly.
+Cranelift is the default backend for development builds, set in
+`.cargo/config.toml` (`[profile.dev] codegen-backend = "cranelift"`) on the
+nightly pinned in `rust-toolchain.toml`. Release builds use the same pinned
+nightly with LLVM, because the dev profile does not reach them. Coverage
+selects LLVM explicitly, since Cranelift cannot instrument coverage.
+
+The MSRV check (`rust-version` in `Cargo.toml`, the `msrv` job in
+`.github/workflows/ci.yml`) runs `cargo check --all-targets` on that stable
+toolchain from outside the checkout, with `--manifest-path`. This is
+deliberate. Cargo reads `.cargo/config.toml` from the working directory, not
+from the manifest's location, and stable Cargo cannot read this one: it refuses
+the `[unstable]` table's keys and the `[profile.dev] codegen-backend` key, and
+rejects the `-Zthreads` flag. Running the check inside the checkout fails, and
+moving the nightly-only settings out of the configuration to make it pass would
+undo the Cranelift default. Do not "fix" the job by running it in the checkout.
+The same applies locally: to check the MSRV, run
+`cd "$(mktemp -d)" && cargo +<msrv> check --all-targets --locked --manifest-path <checkout>/Cargo.toml`
+with `CARGO_TARGET_DIR` set outside the checkout.
 
 ### Development build footprint
 
@@ -240,8 +240,9 @@ development build and every rebuild recompiles whole crates. To debug, run with
 2026-07-31, so Cargo coordinates metadata output itself. No raw rustc metadata
 flags are used, and the pin is not moved to suit the key. Whoever moves the pin
 across a boundary of the rule must switch the key to match the new pin family.
-Stable Cargo, which builds the release, ignores the `[unstable]` table. The
-Concordat `rust-dev-build-footprint` rule is the check for these settings.
+The release builds on the pinned nightly, so it reads the `[unstable]` table
+too. The Concordat `rust-dev-build-footprint` rule is the check for these
+settings.
 
 Install `clang`, `lld`, `mold`, `python3`, and `cargo-audit` before running the
 full generated workflow locally on Linux.
