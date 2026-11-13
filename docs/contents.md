@@ -45,12 +45,12 @@ set.
 
 ## Design artefacts
 
-- [ADR 001: Lock file naming](adr-001-lock-file-naming.md) records how the
+- [ADR 001: Lock file naming](adrs/adr-0001-lock-file-naming.md) records how the
   journal lock path is derived and which coordination/configuration suffixes
   are reserved.
-- [ADR 002: Testing strategy](adr-002-testing-strategy.md) records how the
+- [ADR 002: Testing strategy](adrs/adr-0002-testing-strategy.md) records how the
   repository's required testing prongs apply to the `mpsc-log` design.
-- [ADR 003: `jo` field syntax and duplicate keys](adr-003-jo-field-syntax-and-duplicate-keys.md)
+- [ADR 003: `jo` field syntax and duplicate keys](adrs/adr-0003-jo-field-syntax-and-duplicate-keys.md)
   records the selected `jo`-inspired field syntax and last-wins duplicate-path
   semantics.
 - [mpsc-log event schema](mpsc-log-event-schema.json) defines the initial JSON

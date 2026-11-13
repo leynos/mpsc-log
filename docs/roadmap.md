@@ -11,9 +11,9 @@ The primary source documents are:
 - [terms of reference](terms-of-reference.md);
 - [technical design](mpsc-log-design.md);
 - [context](context.md);
-- [ADR 001: Lock file naming](adr-001-lock-file-naming.md);
-- [ADR 002: Testing strategy](adr-002-testing-strategy.md);
-- [ADR 003: `jo` field syntax and duplicate keys](adr-003-jo-field-syntax-and-duplicate-keys.md);
+- [ADR 001: Lock file naming](adrs/adr-0001-lock-file-naming.md);
+- [ADR 002: Testing strategy](adrs/adr-0002-testing-strategy.md);
+- [ADR 003: `jo` field syntax and duplicate keys](adrs/adr-0003-jo-field-syntax-and-duplicate-keys.md);
 - [event schema](mpsc-log-event-schema.json);
 - [sidecar example](mpsc-log-sidecar.example.toml).
 
@@ -40,14 +40,14 @@ error handling, and future compatibility work. See mpsc-log-design.md §§3, 5,
 
 - [x] 1.1.1. Record lock-file naming and reserved suffixes in an ADR.
   - See mpsc-log-design.md §§4, 6-7, 11, 13 and
-    adr-001-lock-file-naming.md.
+    adrs/adr-0001-lock-file-naming.md.
   - Success: the ADR defines adjacent lock naming, `.lock` and self-sidecar
     journal rejection, sidecar sharing by stem, and the local-filesystem
     coordination boundary.
 - [x] 1.1.2. Record the selected `jo` field syntax and duplicate-key
   behaviour in an ADR.
   - See mpsc-log-design.md §§2, 5, 13, terms-of-reference.md §§6, 9, and
-    adr-003-jo-field-syntax-and-duplicate-keys.md.
+    adrs/adr-0003-jo-field-syntax-and-duplicate-keys.md.
   - Success: the ADR names selected `jo`-inspired forms, rejected options,
     object-root enforcement, object-path handling, and last-wins duplicate-key
     semantics.
@@ -93,7 +93,7 @@ same CLI, domain, filesystem, and test seams. See mpsc-log-design.md §§2, 4,
   - Requires 1.2.1 and 1.2.2.
   - See mpsc-log-design.md §§7, 10-12 and
     docs/reliable-testing-in-rust-via-dependency-injection.md. See
-    adr-002-testing-strategy.md.
+    adrs/adr-0002-testing-strategy.md.
   - [ ] Provide injectable clock and filesystem adapter boundaries for record
     timestamps, fault injection, and deterministic rotation fixtures.
   - Success: failures such as partial writes, metadata errors, and fixed
@@ -155,7 +155,7 @@ external JSONL contract and df12-build event examples. See mpsc-log-design.md
   v1.0 parsing, and semantic validation for the `[rotation]`, `[locking]`,
   `[defaults]`, and `[schema]` tables.
   - Requires 2.1.1.
-  - See mpsc-log-design.md §§2, 6, 10, adr-001-lock-file-naming.md, and
+  - See mpsc-log-design.md §§2, 6, 10, adrs/adr-0001-lock-file-naming.md, and
     mpsc-log-sidecar.example.toml.
   - Success: derivation replaces the journal filename extension with `.toml`,
     appending `.toml` when the journal has no extension, so `run`, `run.jsonl`,
@@ -315,7 +315,7 @@ terms-of-reference.md §§5, 7.
     decodable JSON object lines as successful child processes.
 - [ ] 3.3.2. Add pairwise CLI/configuration combination coverage.
   - Requires phase 2 and 3.3.1.
-  - See mpsc-log-design.md §11 and adr-002-testing-strategy.md.
+  - See mpsc-log-design.md §11 and adrs/adr-0002-testing-strategy.md.
   - Success: the suite covers `jo` syntax form, coercion source, object path,
     sidecar default, rotation schedule, rotation state, and lock contention.
   - Success: parameterized duplicate-path tests cover duplicate writes at the
@@ -444,7 +444,7 @@ mpsc-log-design.md §11 and terms-of-reference.md §7.
 
 - [ ] 4.4.1. Build the concurrent rotation end-to-end suite.
   - Requires steps 4.1-4.3.
-  - See mpsc-log-design.md §11 and adr-002-testing-strategy.md.
+  - See mpsc-log-design.md §11 and adrs/adr-0002-testing-strategy.md.
   - Success: forced size and scheduled rotations under concurrent writers
     preserve the decoded record count across active, plain, scheduled, and
     compressed files.
