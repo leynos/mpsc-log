@@ -173,11 +173,12 @@ dependency.
 Development builds use the build standard described below: `-Zthreads=8` and,
 on Linux, linking with `mold` (driven by clang on `x86_64-unknown-linux-gnu`;
 other Linux targets use their default driver), from `.cargo/config.toml`, which
-also selects the Cranelift backend for the `dev` profile. `rust-toolchain.toml`
-retains the `llvm-tools-preview` and `rustc-codegen-cranelift-preview`
-components so Cranelift and LLVM coverage both work without an extra
-`rustup component add`. Coverage generation uses `lld` because LLVM coverage
-tooling expects LLVM-compatible linker behaviour.
+leaves the backend at the LLVM default (the Cranelift selection is commented
+out). `rust-toolchain.toml` retains the `llvm-tools-preview` and
+`rustc-codegen-cranelift-preview` components so a Cranelift opt-in and LLVM
+coverage both work without an extra `rustup component add`. Coverage generation
+uses `lld` because LLVM coverage tooling expects LLVM-compatible linker
+behaviour.
 
 ### The build standard
 
