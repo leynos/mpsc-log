@@ -207,11 +207,15 @@ workflow steps, so a flag lost through a recipe or workflow edit fails there.
 
 ### Cranelift
 
-Cranelift is the default backend for development builds, set in
-`.cargo/config.toml` (`[profile.dev] codegen-backend = "cranelift"`) on the
-nightly pinned in `rust-toolchain.toml`. Release builds use the same pinned
-nightly with LLVM, because the dev profile does not reach them. Coverage
-selects LLVM explicitly, since Cranelift cannot instrument coverage.
+The estate standard is LLVM, so LLVM is the default backend here. The Cranelift
+selection in `.cargo/config.toml` is commented out; the
+`rustc-codegen-cranelift-preview` component stays in `rust-toolchain.toml` for
+an opt-in. See the
+[concordat decision record](https://github.com/leynos/concordat/blob/main/docs/adrs/adr-0004-cranelift-is-not-part-of-the-rust-build-standard.md),
+with review due 14 May 2027. An inherited `CARGO_PROFILE_*_CODEGEN_BACKEND`
+variable can still select Cranelift. Cranelift does not unwind, so no test may
+rely on a caught panic under an opt-in. Coverage selects LLVM explicitly, since
+Cranelift cannot instrument coverage.
 
 ### Development build footprint
 
