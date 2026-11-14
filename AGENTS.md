@@ -245,10 +245,10 @@ project:
     ```
 
     The first command uses `cargo test --all-targets --all-features` when
-    `cargo-nextest` is not installed. Both commands append `-D warnings`,
-    `-Zthreads=8`, and, on Linux, `-Clink-arg=-fuse-ld=mold` to any inherited
-    `RUSTFLAGS`, so warnings fail the run. The doctest command does not set
-    `RUSTDOCFLAGS`.
+    `cargo-nextest` is not installed. Both commands set `RUSTFLAGS` to any
+    inherited value plus `-D warnings`, `-Zthreads=8`, and, on Linux,
+    `-Clink-arg=-fuse-ld=mold`. The doctest command sets no `RUSTDOCFLAGS`, so
+    the Makefile adds no Rustdoc warning setting to it.
 - Clippy warnings MUST be disallowed.
 - Fix any warnings emitted during tests in the code itself rather than
   silencing them.
