@@ -401,8 +401,8 @@ collaboration.
 
 ## Fast development builds
 
-Development builds compile with the Cranelift backend, the parallel frontend
-and, on Linux, the `mold` linker, all set in `.cargo/config.toml`, which every
+Development builds compile with the default LLVM backend, the parallel frontend
+and, on Linux, the `mold` linker, set in `.cargo/config.toml`, which every
 `cargo` invocation discovers. They require the pinned nightly toolchain and a
-`mold` binary on the `PATH`. Release builds use LLVM, and `make coverage`
-selects LLVM explicitly. See `docs/developers-guide.md`, "Cranelift".
+`mold` binary on the `PATH`. `make coverage` selects LLVM explicitly. See
+`docs/developers-guide.md`, "Cranelift".

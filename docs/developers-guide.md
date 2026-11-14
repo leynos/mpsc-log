@@ -173,11 +173,12 @@ dependency.
 Development builds use the build standard described below: `-Zthreads=8` and,
 on Linux, linking with `mold` (driven by clang on `x86_64-unknown-linux-gnu`;
 other Linux targets use their default driver), from `.cargo/config.toml`, which
-also selects the Cranelift backend for the `dev` profile. `rust-toolchain.toml`
-retains the `llvm-tools-preview` and `rustc-codegen-cranelift-preview`
-components so Cranelift and LLVM coverage both work without an extra
-`rustup component add`. Coverage generation uses `lld` because LLVM coverage
-tooling expects LLVM-compatible linker behaviour.
+leaves the backend at the LLVM default (the Cranelift selection is commented
+out). `rust-toolchain.toml` retains the `llvm-tools-preview` and
+`rustc-codegen-cranelift-preview` components so a Cranelift opt-in and LLVM
+coverage both work without an extra `rustup component add`. Coverage generation
+uses `lld` because LLVM coverage tooling expects LLVM-compatible linker
+behaviour.
 
 ### The build standard
 
@@ -207,11 +208,15 @@ workflow steps, so a flag lost through a recipe or workflow edit fails there.
 
 ### Cranelift
 
-Cranelift is the default backend for development builds, set in
-`.cargo/config.toml` (`[profile.dev] codegen-backend = "cranelift"`) on the
-nightly pinned in `rust-toolchain.toml`. Release builds use the same pinned
-nightly with LLVM, because the dev profile does not reach them. Coverage
-selects LLVM explicitly, since Cranelift cannot instrument coverage.
+The estate standard is LLVM, so LLVM is the default backend here. The Cranelift
+selection in `.cargo/config.toml` is commented out; the
+`rustc-codegen-cranelift-preview` component stays in `rust-toolchain.toml` for
+an opt-in. See the
+[concordat decision record](https://github.com/leynos/concordat/blob/main/docs/adrs/adr-0004-cranelift-is-not-part-of-the-rust-build-standard.md),
+with review due 14 May 2027. An inherited `CARGO_PROFILE_*_CODEGEN_BACKEND`
+variable can still select Cranelift. Cranelift does not unwind, so no test may
+rely on a caught panic under an opt-in. Coverage selects LLVM explicitly, since
+Cranelift cannot instrument coverage.
 
 ### Development build footprint
 
