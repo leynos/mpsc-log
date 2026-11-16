@@ -33,7 +33,12 @@ fn run_self(search_path: Option<&str>) -> std::io::Result<std::process::Output> 
 /// covered by the child runs without being listed, and a new pure test is
 /// listed here. The child-run tests live in this module, which the selection
 /// never matches, so a child cannot select them.
-const NOT_MAKE_BACKED: [&str; 1] = ["a_disagreement_is_named_for_every_shape"];
+const NOT_MAKE_BACKED: [&str; 4] = [
+    "a_disagreement_is_named_for_every_shape",
+    "default_goal_value_reads_only_the_default_goal",
+    "make_command_reads_stdin_sets_the_environment_and_drops_inherited_flags",
+    "the_database_is_read_only_after_a_successful_make",
+];
 
 /// The child's test selection: `make_probe`'s tests, less [`NOT_MAKE_BACKED`],
 /// so the child runs every make-backed test and none of the child-run tests.

@@ -107,6 +107,62 @@ fn default_goal_value(line: &str) -> Option<String> {
     (name == ".DEFAULT_GOAL").then(|| value.to_owned())
 }
 
+/// Only a `.DEFAULT_GOAL` assignment line yields a value, in either spelling.
+#[rstest]
+#[case::equals(".DEFAULT_GOAL = test", Some("test"))]
+#[case::colon_equals(".DEFAULT_GOAL := test", Some("test"))]
+#[case::another_variable("MAKEFLAGS = -q", None)]
+#[case::not_an_assignment("build: x", None)]
+fn default_goal_value_reads_only_the_default_goal(
+    #[case] line: &str,
+    #[case] expected: Option<&str>,
+) {
+    assert_eq!(default_goal_value(line).as_deref(), expected);
+}
+
+/// The probe command reads the Makefile from standard input, sets the caller's
+/// environment and removes make's own flag variables.
+#[test]
+fn make_command_reads_stdin_sets_the_environment_and_drops_inherited_flags() {
+    use std::ffi::OsStr;
+
+    let command = make_command(&[("EXTRA", "1")]);
+
+    let arguments: Vec<String> = command
+        .get_args()
+        .map(|argument| argument.to_string_lossy().into_owned())
+        .collect();
+    assert_eq!(arguments, ["-f", "-", "-pn"]);
+    let environment: Vec<_> = command.get_envs().collect();
+    assert!(environment.contains(&(OsStr::new("EXTRA"), Some(OsStr::new("1")))));
+    for flag in INHERITED_FLAGS {
+        assert!(
+            environment.contains(&(OsStr::new(flag), None)),
+            "{flag} must be removed from the child"
+        );
+    }
+}
+
+/// A database dump yields its default goal only when make succeeded.
+#[rstest]
+#[case::succeeded(0, Some("x"))]
+#[case::failed(3, None)]
+fn the_database_is_read_only_after_a_successful_make(
+    #[case] exit_code: i32,
+    #[case] expected: Option<&str>,
+) {
+    use std::os::unix::process::ExitStatusExt as _;
+
+    // A wait status carries the exit code in its second byte.
+    let output = std::process::Output {
+        status: std::process::ExitStatus::from_raw(exit_code << 8),
+        stdout: b".DEFAULT_GOAL = x\n".to_vec(),
+        stderr: Vec::new(),
+    };
+
+    assert_eq!(default_goal_in_database(&output).as_deref(), expected);
+}
+
 /// The reader agrees with GNU make on every Makefile it can be run on, so the
 /// behaviour is pinned to make and not to anyone's reading of its manual.
 #[rstest]
