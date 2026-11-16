@@ -117,7 +117,11 @@ fn default_goal_value_reads_only_the_default_goal(
     #[case] line: &str,
     #[case] expected: Option<&str>,
 ) {
-    assert_eq!(default_goal_value(line).as_deref(), expected);
+    assert_eq!(
+        default_goal_value(line).as_deref(),
+        expected,
+        "{line:?} must read as {expected:?}"
+    );
 }
 
 /// The probe command reads the Makefile from standard input, sets the caller's
@@ -132,9 +136,16 @@ fn make_command_reads_stdin_sets_the_environment_and_drops_inherited_flags() {
         .get_args()
         .map(|argument| argument.to_string_lossy().into_owned())
         .collect();
-    assert_eq!(arguments, ["-f", "-", "-pn"]);
+    assert_eq!(
+        arguments,
+        ["-f", "-", "-pn"],
+        "make must read the Makefile from stdin and print its database"
+    );
     let environment: Vec<_> = command.get_envs().collect();
-    assert!(environment.contains(&(OsStr::new("EXTRA"), Some(OsStr::new("1")))));
+    assert!(
+        environment.contains(&(OsStr::new("EXTRA"), Some(OsStr::new("1")))),
+        "the caller's environment must reach the child: {environment:?}"
+    );
     for flag in INHERITED_FLAGS {
         assert!(
             environment.contains(&(OsStr::new(flag), None)),
@@ -145,10 +156,12 @@ fn make_command_reads_stdin_sets_the_environment_and_drops_inherited_flags() {
 
 /// A database dump yields its default goal only when make succeeded.
 #[rstest]
-#[case::succeeded(0, Some("x"))]
-#[case::failed(3, None)]
+#[case::succeeded(0, ".DEFAULT_GOAL = x\n", Some("x"))]
+#[case::failed(3, ".DEFAULT_GOAL = x\n", None)]
+#[case::succeeded_without_a_goal(0, "# a database with no goal\n", None)]
 fn the_database_is_read_only_after_a_successful_make(
     #[case] exit_code: i32,
+    #[case] database: &str,
     #[case] expected: Option<&str>,
 ) {
     use std::os::unix::process::ExitStatusExt as _;
@@ -156,11 +169,15 @@ fn the_database_is_read_only_after_a_successful_make(
     // A wait status carries the exit code in its second byte.
     let output = std::process::Output {
         status: std::process::ExitStatus::from_raw(exit_code << 8),
-        stdout: b".DEFAULT_GOAL = x\n".to_vec(),
+        stdout: database.as_bytes().to_vec(),
         stderr: Vec::new(),
     };
 
-    assert_eq!(default_goal_in_database(&output).as_deref(), expected);
+    assert_eq!(
+        default_goal_in_database(&output).as_deref(),
+        expected,
+        "exit {exit_code} with {database:?} must read as {expected:?}"
+    );
 }
 
 /// The reader agrees with GNU make on every Makefile it can be run on, so the
