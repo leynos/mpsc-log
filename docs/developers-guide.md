@@ -272,10 +272,14 @@ deferral backlog removes itself instead of rotting silently.
 
 `clippy.toml` sets the complexity and nesting thresholds and the
 `disallowed-methods` list that forbids calling `std::env::var`,
-`std::env::var_os`, `std::env::set_var`, and similar functions directly; inject
-an environment reader instead, so tests can stub it. The pinned nightly
-toolchain (`rust-toolchain.toml`) supplies the `rustfmt`, `clippy`, and
-`rust-analyzer` components the baseline and this workflow depend on.
+`std::env::var_os`, `std::env::set_var`, `std::env::remove_var`,
+`std::env::set_current_dir` and similar functions directly; inject an
+environment reader instead, so tests can stub it. A directory a test needs goes
+in as an argument, or to a child process through `Command::current_dir`,
+because changing the process's own working directory forces tests to run one at
+a time. The pinned nightly toolchain (`rust-toolchain.toml`) supplies the
+`rustfmt`, `clippy`, and `rust-analyzer` components the baseline and this
+workflow depend on.
 
 ## CodeScene coverage and the CV-005 contract
 

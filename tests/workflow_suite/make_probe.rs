@@ -49,18 +49,34 @@ fn make_default_goal_in(
     makefile: &str,
     environment: &[(&str, &str)],
 ) -> std::io::Result<GoalProbe> {
-    use std::{
-        io::Write as _,
-        process::{Command as Process, Stdio},
-    };
+    let mut command = make_command(environment);
+    let output = run_make_on(&mut command, makefile)?;
+    Ok(GoalProbe {
+        goal: default_goal_in_database(&output),
+        diagnostic: String::from_utf8_lossy(&output.stderr).into_owned(),
+    })
+}
 
-    let mut command = Process::new("make");
+/// Builds the `make` command that reads a Makefile from standard input and
+/// prints its database, with `environment` set and [`INHERITED_FLAGS`] removed.
+fn make_command(environment: &[(&str, &str)]) -> std::process::Command {
+    let mut command = std::process::Command::new("make");
     command
         .args(["-f", "-", "-pn"])
         .envs(environment.iter().copied());
     for flag in INHERITED_FLAGS {
         command.env_remove(flag);
     }
+    command
+}
+
+/// Feeds `makefile` to `command` on standard input and collects its output.
+fn run_make_on(
+    command: &mut std::process::Command,
+    makefile: &str,
+) -> std::io::Result<std::process::Output> {
+    use std::{io::Write as _, process::Stdio};
+
     let mut child = command
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
@@ -71,18 +87,97 @@ fn make_default_goal_in(
         .take()
         .ok_or_else(|| std::io::Error::other("make's stdin was not piped"))?
         .write_all(makefile.as_bytes())?;
-    let output = child.wait_with_output()?;
-    let text = String::from_utf8_lossy(&output.stdout);
-    let goal = output.status.success().then_some(()).and_then(|()| {
-        text.lines().find_map(|line| {
-            let (name, value) = line.split_once(" = ").or_else(|| line.split_once(" := "))?;
-            (name == ".DEFAULT_GOAL").then(|| value.to_owned())
-        })
-    });
-    Ok(GoalProbe {
-        goal,
-        diagnostic: String::from_utf8_lossy(&output.stderr).into_owned(),
-    })
+    child.wait_with_output()
+}
+
+/// Reads the `.DEFAULT_GOAL` assignment out of make's database dump, when make
+/// succeeded and the dump holds one.
+fn default_goal_in_database(output: &std::process::Output) -> Option<String> {
+    if !output.status.success() {
+        return None;
+    }
+    String::from_utf8_lossy(&output.stdout)
+        .lines()
+        .find_map(default_goal_value)
+}
+
+/// Returns the value of a `.DEFAULT_GOAL = value` or `:=` line, if it is one.
+fn default_goal_value(line: &str) -> Option<String> {
+    let (name, value) = line.split_once(" = ").or_else(|| line.split_once(" := "))?;
+    (name == ".DEFAULT_GOAL").then(|| value.to_owned())
+}
+
+/// Only a `.DEFAULT_GOAL` assignment line yields a value, in either spelling.
+#[rstest]
+#[case::equals(".DEFAULT_GOAL = test", Some("test"))]
+#[case::colon_equals(".DEFAULT_GOAL := test", Some("test"))]
+#[case::another_variable("MAKEFLAGS = -q", None)]
+#[case::not_an_assignment("build: x", None)]
+fn default_goal_value_reads_only_the_default_goal(
+    #[case] line: &str,
+    #[case] expected: Option<&str>,
+) {
+    assert_eq!(
+        default_goal_value(line).as_deref(),
+        expected,
+        "{line:?} must read as {expected:?}"
+    );
+}
+
+/// The probe command reads the Makefile from standard input, sets the caller's
+/// environment and removes make's own flag variables.
+#[test]
+fn make_command_reads_stdin_sets_the_environment_and_drops_inherited_flags() {
+    use std::ffi::OsStr;
+
+    let command = make_command(&[("EXTRA", "1")]);
+
+    let arguments: Vec<String> = command
+        .get_args()
+        .map(|argument| argument.to_string_lossy().into_owned())
+        .collect();
+    assert_eq!(
+        arguments,
+        ["-f", "-", "-pn"],
+        "make must read the Makefile from stdin and print its database"
+    );
+    let environment: Vec<_> = command.get_envs().collect();
+    assert!(
+        environment.contains(&(OsStr::new("EXTRA"), Some(OsStr::new("1")))),
+        "the caller's environment must reach the child: {environment:?}"
+    );
+    for flag in INHERITED_FLAGS {
+        assert!(
+            environment.contains(&(OsStr::new(flag), None)),
+            "{flag} must be removed from the child"
+        );
+    }
+}
+
+/// A database dump yields its default goal only when make succeeded.
+#[rstest]
+#[case::succeeded(0, ".DEFAULT_GOAL = x\n", Some("x"))]
+#[case::failed(3, ".DEFAULT_GOAL = x\n", None)]
+#[case::succeeded_without_a_goal(0, "# a database with no goal\n", None)]
+fn the_database_is_read_only_after_a_successful_make(
+    #[case] exit_code: i32,
+    #[case] database: &str,
+    #[case] expected: Option<&str>,
+) {
+    use std::os::unix::process::ExitStatusExt as _;
+
+    // A wait status carries the exit code in its second byte.
+    let output = std::process::Output {
+        status: std::process::ExitStatus::from_raw(exit_code << 8),
+        stdout: database.as_bytes().to_vec(),
+        stderr: Vec::new(),
+    };
+
+    assert_eq!(
+        default_goal_in_database(&output).as_deref(),
+        expected,
+        "exit {exit_code} with {database:?} must read as {expected:?}"
+    );
 }
 
 /// The reader agrees with GNU make on every Makefile it can be run on, so the
