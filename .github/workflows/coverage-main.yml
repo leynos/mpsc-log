@@ -78,9 +78,9 @@ jobs:
         with:
           output-path: lcov.info
           format: lcov
-      # The doctests are the only part of `make test` the coverage step does
-      # not run. The flags are the ones `make test` gives its doctest line.
-      # tests/workflow_suite_contract.rs holds the split.
+          # The doctests are the only part of `make test` the coverage step does
+          # not run. The flags are the ones `make test` gives its doctest line.
+          # tests/workflow_suite_contract.rs holds the split.
           with-ratchet: 'true'
       - name: Upload coverage data to CodeScene
         if: github.ref == 'refs/heads/main'
