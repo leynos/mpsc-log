@@ -31,7 +31,9 @@
 - **Keep file size manageable.** No single code file may be longer than 400
   lines.  Long switch statements or dispatch tables should be broken up by
   feature and constituents colocated with targets. Large blocks of test data
-  should be moved to external data files.
+  should be moved to external data files. A file vendored byte for byte from an
+  upstream, such as `scripts/uv_gate.py`, is exempt, because splitting it would
+  break its canonical digest.
 
 ## Documentation maintenance
 
@@ -230,7 +232,8 @@ project:
     ```
 
     The `interrogate` step fails on any undocumented Python definition under
-    `tests/`, including any MISSED row, which the rounded percentage can hide.
+    `scripts/` or `tests/`, including any MISSED row, which the rounded
+    percentage can hide.
     `cargo doc` runs with `RUSTDOCFLAGS="-D warnings"`, so Rustdoc warnings fail
     the command. Clippy and Whitaker findings fail it too. `cargo doc` and
     `cargo clippy` append `-Zthreads=8` and, on Linux,
