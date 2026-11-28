@@ -232,7 +232,8 @@ project:
     ```
 
     The `interrogate` step fails on any undocumented Python definition under
-    `tests/`, including any MISSED row, which the rounded percentage can hide.
+    `scripts/` or `tests/`, including any MISSED row, which the rounded
+    percentage can hide.
     `cargo doc` runs with `RUSTDOCFLAGS="-D warnings"`, so Rustdoc warnings fail
     the command. Clippy and Whitaker findings fail it too. `cargo doc` and
     `cargo clippy` append `-Zthreads=8` and, on Linux,
